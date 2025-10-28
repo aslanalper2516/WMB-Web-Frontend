@@ -4,13 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { menuApi } from '../../api/menu';
 import { categoryProductApi } from '../../api/categoryProduct';
 import { companyBranchApi } from '../../api/companyBranch';
-import type { Menu, Category, Product, Branch, Kitchen, MenuCategory, MenuProduct, MenuBranch, ProductKitchen } from '../../types';
+import type { Menu } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Table } from '../../components/ui/Table';
-import { Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 
 export const MenuDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,46 +34,46 @@ export const MenuDetail: React.FC = () => {
   });
 
   // Menü kategorilerini getir
-  const { data: menuCategoriesData, isLoading: menuCategoriesLoading } = useQuery({
+  const { data: menuCategoriesData } = useQuery({
     queryKey: ['menu-categories', id],
     queryFn: () => menuApi.getMenuCategories(id!),
     enabled: !!id,
   });
 
   // Menü ürünlerini getir
-  const { data: menuProductsData, isLoading: menuProductsLoading } = useQuery({
+  const { data: menuProductsData } = useQuery({
     queryKey: ['menu-products', id],
     queryFn: () => menuApi.getMenuProducts(id!),
     enabled: !!id,
   });
 
   // Menü şubelerini getir
-  const { data: menuBranchesData, isLoading: menuBranchesLoading } = useQuery({
+  const { data: menuBranchesData } = useQuery({
     queryKey: ['menu-branches', id],
     queryFn: () => menuApi.getMenuBranches(id!),
     enabled: !!id,
   });
 
   // Tüm kategorileri getir
-  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+  const { data: categoriesData } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoryProductApi.getCategories(),
   });
 
   // Tüm ürünleri getir
-  const { data: productsData, isLoading: productsLoading } = useQuery({
+  const { data: productsData } = useQuery({
     queryKey: ['products'],
     queryFn: () => categoryProductApi.getProducts(),
   });
 
   // Tüm şubeleri getir
-  const { data: branchesData, isLoading: branchesLoading } = useQuery({
+  const { data: branchesData } = useQuery({
     queryKey: ['branches'],
     queryFn: () => companyBranchApi.getBranches(),
   });
 
   // Mutfakları getir (şube bazında)
-  const { data: kitchensData, isLoading: kitchensLoading } = useQuery({
+  const { data: kitchensData } = useQuery({
     queryKey: ['kitchens', selectedBranch],
     queryFn: () => companyBranchApi.getKitchens(selectedBranch),
     enabled: !!selectedBranch,
@@ -148,13 +147,6 @@ export const MenuDetail: React.FC = () => {
     },
   });
 
-  const unassignKitchenMutation = useMutation({
-    mutationFn: ({ productId, kitchenId, branchId }: { productId: string; kitchenId: string; branchId: string }) =>
-      menuApi.unassignProductFromKitchen(productId, kitchenId, branchId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-products', id] });
-    },
-  });
 
   // Event handlers
   const handleAddCategory = async (e: React.FormEvent) => {
@@ -200,17 +192,17 @@ export const MenuDetail: React.FC = () => {
 
   // Menüde olmayan kategorileri filtrele
   const availableCategories = categories.filter(
-    cat => !menuCategories.some(mc => mc.category._id === cat._id)
+    cat => !menuCategories.some(mc => (typeof mc.category === 'string' ? mc.category === cat._id : mc.category._id === cat._id))
   );
 
   // Menüde olmayan ürünleri filtrele
   const availableProducts = products.filter(
-    prod => !menuProducts.some(mp => mp.product._id === prod._id)
+    prod => !menuProducts.some(mp => (typeof mp.product === 'string' ? mp.product === prod._id : mp.product._id === prod._id))
   );
 
   // Menüde olmayan şubeleri filtrele
   const availableBranches = branches.filter(
-    branch => !menuBranches.some(mb => mb.branch._id === branch._id)
+    branch => !menuBranches.some(mb => (typeof mb.branch === 'string' ? mb.branch === branch._id : mb.branch._id === branch._id))
   );
 
   return (
@@ -325,22 +317,22 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'category',
                     title: 'Kategori',
-                    render: (mc) => mc.category.name
+                    render: (_value: any, mc: any) => mc.category.name
                   },
                   {
                     key: 'order',
                     title: 'Sıra',
-                    render: (mc) => mc.order
+                    render: (_value: any, mc: any) => mc.order
                   },
                   {
                     key: 'isActive',
                     title: 'Durum',
-                    render: (mc) => mc.isActive ? 'Aktif' : 'Pasif'
+                    render: (_value: any, mc: any) => mc.isActive ? 'Aktif' : 'Pasif'
                   },
                   {
                     key: 'actions',
                     title: 'İşlemler',
-                    render: (mc) => (
+                    render: (_value: any, mc: any) => (
                       <div className="flex space-x-2">
                         <Button
                           size="sm"
@@ -392,8 +384,8 @@ export const MenuDetail: React.FC = () => {
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     options={menuCategories.map(mc => ({
-                      value: mc.category._id,
-                      label: mc.category.name
+                      value: typeof mc.category === 'string' ? mc.category : mc.category._id,
+                      label: typeof mc.category === 'string' ? mc.category : mc.category.name
                     }))}
                     placeholder="Kategori Seçin"
                     required
@@ -459,8 +451,8 @@ export const MenuDetail: React.FC = () => {
                         value={selectedProduct}
                         onChange={(e) => setSelectedProduct(e.target.value)}
                         options={menuProducts.map(mp => ({
-                          value: mp.product._id,
-                          label: mp.product.name
+                          value: typeof mp.product === 'string' ? mp.product : mp.product._id,
+                          label: typeof mp.product === 'string' ? mp.product : mp.product.name
                         }))}
                         placeholder="Ürün Seçin"
                         required
@@ -475,8 +467,8 @@ export const MenuDetail: React.FC = () => {
                           setSelectedKitchen('');
                         }}
                         options={menuBranches.map(mb => ({
-                          value: mb.branch._id,
-                          label: mb.branch.name
+                          value: typeof mb.branch === 'string' ? mb.branch : mb.branch._id,
+                          label: typeof mb.branch === 'string' ? mb.branch : mb.branch.name
                         }))}
                         placeholder="Şube Seçin"
                         required
@@ -541,7 +533,7 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'category',
                     title: 'Kategori',
-                    render: (mp) => (
+                    render: (_value: any, mp: any) => (
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                         {mp.category.name}
                       </span>
@@ -550,7 +542,7 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'product',
                     title: 'Ürün',
-                    render: (mp) => (
+                    render: (_value: any, mp: any) => (
                       <div>
                         <div className="font-medium text-gray-900">{mp.product.name}</div>
                         {mp.product.description && (
@@ -562,7 +554,7 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'order',
                     title: 'Sıra',
-                    render: (mp) => (
+                    render: (_value: any, mp: any) => (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         {mp.order}
                       </span>
@@ -571,7 +563,7 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'isActive',
                     title: 'Durum',
-                    render: (mp) => (
+                    render: (_value: any, mp: any) => (
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         mp.isActive 
                           ? 'bg-green-100 text-green-800' 
@@ -584,7 +576,7 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'actions',
                     title: 'İşlemler',
-                    render: (mp) => (
+                    render: (_value: any, mp: any) => (
                       <div className="flex space-x-2">
                         <Button
                           size="sm"
@@ -679,17 +671,17 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'branch',
                     title: 'Şube',
-                    render: (mb) => mb.branch.name
+                    render: (_value: any, mb: any) => mb.branch.name
                   },
                   {
                     key: 'isActive',
                     title: 'Durum',
-                    render: (mb) => mb.isActive ? 'Aktif' : 'Pasif'
+                    render: (_value: any, mb: any) => mb.isActive ? 'Aktif' : 'Pasif'
                   },
                   {
                     key: 'actions',
                     title: 'İşlemler',
-                    render: (mb) => (
+                    render: (_value: any, mb: any) => (
                       <div className="flex space-x-2">
                         <Button
                           size="sm"

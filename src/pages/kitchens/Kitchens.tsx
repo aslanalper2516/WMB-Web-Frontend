@@ -96,7 +96,7 @@ export const Kitchens: React.FC = () => {
     { 
       key: 'company' as keyof Kitchen, 
       title: 'Şirket',
-      render: (item: Kitchen) => {
+      render: (_value: any, item: Kitchen) => {
         const value = item.company;
         if (typeof value === 'string') return value;
         return value?.name || 'N/A';
@@ -105,7 +105,7 @@ export const Kitchens: React.FC = () => {
     { 
       key: 'branch' as keyof Kitchen, 
       title: 'Şube',
-      render: (item: Kitchen) => {
+      render: (_value: any, item: Kitchen) => {
         const value = item.branch;
         if (typeof value === 'string') return value;
         return value?.name || 'N/A';
@@ -114,12 +114,12 @@ export const Kitchens: React.FC = () => {
     {
       key: 'createdAt' as keyof Kitchen,
       title: 'Oluşturulma',
-      render: (item: Kitchen) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
+      render: (_value: any, item: Kitchen) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
     },
     {
       key: 'actions' as keyof Kitchen,
       title: 'İşlemler',
-      render: (item: Kitchen) => (
+      render: (_value: any, item: Kitchen) => (
         <div className="flex space-x-2">
           <Button
             size="sm"

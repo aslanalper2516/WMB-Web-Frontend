@@ -156,7 +156,7 @@ export const Companies: React.FC = () => {
     }
   };
 
-  const openEditModal = (company: Company) => {
+  const openEditModal = async (company: Company) => {
     setSelectedCompany(company);
     setFormData({
       name: company.name,
@@ -169,11 +169,35 @@ export const Companies: React.FC = () => {
       address: company.address || '',
     });
     
-    // İl seçimini ayarla
+    // İl seçimini ayarla ve ilçeleri yükle
     if (company.province) {
       const province = provinces.find(p => p.name === company.province);
       if (province) {
         setSelectedProvinceId(province.id);
+        
+        // İlçeleri yükle
+        try {
+          const districtsData = await turkiyeApi.getDistrictsByProvince(province.id);
+          setDistricts(districtsData);
+          
+          // İlçe seçimini ayarla ve mahalleleri yükle
+          if (company.district) {
+            const district = districtsData.find((d: District) => d.name === company.district);
+            if (district) {
+              setSelectedDistrictId(district.id);
+              
+              // Mahalleleri yükle
+              try {
+                const neighborhoodsData = await turkiyeApi.getNeighborhoodsByDistrict(district.id);
+                setNeighborhoods(neighborhoodsData);
+              } catch (error) {
+                console.error('Error loading neighborhoods:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading districts:', error);
+        }
       }
     }
     

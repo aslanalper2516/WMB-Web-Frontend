@@ -3,7 +3,7 @@ import React from 'react';
 interface Column<T> {
   key: keyof T | string;
   title: string;
-  render?: (item: T) => React.ReactNode;
+  render?: (value: any, item: T) => React.ReactNode;
   className?: string;
 }
 
@@ -36,18 +36,20 @@ export function Table<T extends { _id?: string | number; id?: string | number }>
               className={`hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''}`}
               onClick={() => onRowClick?.(item)}
             >
-              {columns.map((column, colIndex) => (
-                <td key={colIndex} className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${column.className || ''}`}>
-                  {column.render
-                    ? column.render(item)
-                    : (() => {
-                        const value = item[column.key as keyof T];
-                        if (value === null || value === undefined) return '-';
-                        if (typeof value === 'object') return JSON.stringify(value);
-                        return String(value);
-                      })()}
-                </td>
-              ))}
+              {columns.map((column, colIndex) => {
+                const value = item[column.key as keyof T];
+                return (
+                  <td key={colIndex} className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${column.className || ''}`}>
+                    {column.render
+                      ? column.render(value, item)
+                      : (() => {
+                          if (value === null || value === undefined) return '-';
+                          if (typeof value === 'object') return JSON.stringify(value);
+                          return String(value);
+                        })()}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

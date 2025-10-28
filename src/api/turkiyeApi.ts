@@ -68,23 +68,21 @@ export const turkiyeApi = {
 
   // Belirli bir ilçeye ait mahalleleri getir
   getNeighborhoodsByDistrict: async (districtId: number): Promise<Neighborhood[]> => {
-    const response = await fetch(`${BASE_URL}/neighborhoods`);
+    const response = await fetch(`${BASE_URL}/neighborhoods?districtId=${districtId}`);
     if (!response.ok) {
       throw new Error('Mahalleler yüklenirken hata oluştu');
     }
     const data = await response.json();
-    const allNeighborhoods = data.data || [];
-    return allNeighborhoods.filter((neighborhood: any) => neighborhood.districtId === districtId);
+    return data.data || [];
   },
 
   // Belirli bir ilçeye ait köyleri getir
   getVillagesByDistrict: async (districtId: number): Promise<Village[]> => {
-    const response = await fetch(`${BASE_URL}/villages`);
+    const response = await fetch(`${BASE_URL}/villages?districtId=${districtId}`);
     if (!response.ok) {
       throw new Error('Köyler yüklenirken hata oluştu');
     }
     const data = await response.json();
-    const allVillages = data.data || [];
-    return allVillages.filter((village: any) => village.districtId === districtId);
+    return data.data || [];
   },
 };

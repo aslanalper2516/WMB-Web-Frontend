@@ -86,17 +86,17 @@ export const Categories: React.FC = () => {
     {
       key: 'name',
       title: 'Ad',
-      render: (item: Category) => item.name,
+      render: (_value: any, item: Category) => item.name,
     },
     {
       key: 'description',
       title: 'Açıklama',
-      render: (item: Category) => item.description || '-',
+      render: (_value: any, item: Category) => item.description || '-',
     },
     {
       key: 'parent',
       title: 'Üst Kategori',
-      render: (item: Category) => {
+      render: (_value: any, item: Category) => {
         if (typeof item.parent === 'string') {
           return item.parent;
         }
@@ -106,17 +106,17 @@ export const Categories: React.FC = () => {
     {
       key: 'isActive',
       title: 'Durum',
-      render: (item: Category) => (item.isActive ? 'Aktif' : 'Pasif'),
+      render: (_value: any, item: Category) => (item.isActive ? 'Aktif' : 'Pasif'),
     },
     {
       key: 'createdAt',
       title: 'Oluşturulma',
-      render: (item: Category) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
+      render: (_value: any, item: Category) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
     },
     {
       key: 'actions',
       title: 'İşlemler',
-      render: (item: Category) => (
+      render: (_value: any, item: Category) => (
         <div className="flex space-x-2">
           <Button
             size="sm"

@@ -13,6 +13,7 @@ import type {
   SalesMethod,
   CreateSalesMethodRequest,
   BranchSalesMethod,
+  CurrencyUnit,
 } from '../types';
 
 export const categoryProductApi = {
@@ -149,25 +150,8 @@ export const categoryProductApi = {
     return apiClient.delete<{ message: string }>(`/category-product/branches/${branchId}/sales-methods/${salesMethodId}`);
   },
 
-  // Product Prices
-  getProductPrices: async (productId: string): Promise<{ message: string; prices: ProductPrice[] }> => {
-    return apiClient.get<{ message: string; prices: ProductPrice[] }>(`/category-product/products/${productId}/prices`);
-  },
-
-  createProductPrice: async (productId: string, data: { salesMethod: string; price: number; currencyUnit?: string; branch?: string; company?: string }): Promise<{ message: string; price: ProductPrice }> => {
-    return apiClient.post<{ message: string; price: ProductPrice }>(`/category-product/products/${productId}/prices`, data);
-  },
-
-  updateProductPrice: async (priceId: string, data: { price?: number; currencyUnit?: string }): Promise<{ message: string; price: ProductPrice }> => {
-    return apiClient.put<{ message: string; price: ProductPrice }>(`/category-product/prices/${priceId}`, data);
-  },
-
-  deleteProductPrice: async (priceId: string): Promise<{ message: string }> => {
-    return apiClient.delete<{ message: string }>(`/category-product/prices/${priceId}`);
-  },
-
   // Currency Units
-  getCurrencyUnits: async (): Promise<{ message: string; methods: CurrencyUnit[] }> => {
-    return apiClient.get<{ message: string; methods: CurrencyUnit[] }>('/category-product/currency-units');
+  getCurrencyUnits: async (): Promise<{ message: string; units: CurrencyUnit[] }> => {
+    return apiClient.get<{ message: string; units: CurrencyUnit[] }>('/category-product/currency-units');
   },
 };

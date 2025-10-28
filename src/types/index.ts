@@ -85,11 +85,15 @@ export interface Company {
 export interface Branch {
   _id: string;
   name: string;
-  address: string;
   phone: string;
   email: string;
-  company: string;
+  company: string | Company;
   tables: number;
+  province?: string;
+  district?: string;
+  neighborhood?: string;
+  street?: string;
+  address: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -108,11 +112,15 @@ export interface CreateCompanyRequest {
 
 export interface CreateBranchRequest {
   name: string;
-  address: string;
   phone: string;
   email: string;
   company: string;
   tables: number;
+  province?: string;
+  district?: string;
+  neighborhood?: string;
+  street?: string;
+  address: string;
 }
 
 // Category Product Types

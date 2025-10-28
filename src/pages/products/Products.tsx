@@ -91,17 +91,17 @@ export const Products: React.FC = () => {
     {
       key: 'name',
       title: 'Ad',
-      render: (item: Product) => item.name,
+      render: (_value: any, item: Product) => item.name,
     },
     {
       key: 'description',
       title: 'Açıklama',
-      render: (item: Product) => item.description || '-',
+      render: (_value: any, item: Product) => item.description || '-',
     },
     {
       key: 'defaultSalesMethod',
       title: 'Varsayılan Satış Yöntemi',
-      render: (item: Product) => {
+      render: (_value: any, item: Product) => {
         if (typeof item.defaultSalesMethod === 'string') {
           return item.defaultSalesMethod;
         }
@@ -111,17 +111,17 @@ export const Products: React.FC = () => {
     {
       key: 'isActive',
       title: 'Durum',
-      render: (item: Product) => (item.isActive ? 'Aktif' : 'Pasif'),
+      render: (_value: any, item: Product) => (item.isActive ? 'Aktif' : 'Pasif'),
     },
     {
       key: 'createdAt',
       title: 'Oluşturulma',
-      render: (item: Product) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
+      render: (_value: any, item: Product) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
     },
     {
       key: 'actions',
       title: 'İşlemler',
-      render: (item: Product) => (
+      render: (_value: any, item: Product) => (
         <div className="flex space-x-2">
           <Button
             size="sm"

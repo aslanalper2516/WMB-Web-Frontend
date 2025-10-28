@@ -104,27 +104,27 @@ export const Menus: React.FC = () => {
     {
       key: 'description',
       title: 'Açıklama',
-      render: (menu: Menu) => menu.description || '-'
+      render: (_value: any, menu: Menu) => menu.description || '-'
     },
     {
       key: 'company',
       title: 'Şirket',
-      render: (menu: Menu) => typeof menu.company === 'string' ? menu.company : menu.company.name
+      render: (_value: any, menu: Menu) => typeof menu.company === 'string' ? menu.company : menu.company.name
     },
     {
       key: 'isActive',
       title: 'Durum',
-      render: (menu: Menu) => menu.isActive ? 'Aktif' : 'Pasif'
+      render: (_value: any, menu: Menu) => menu.isActive ? 'Aktif' : 'Pasif'
     },
     {
       key: 'createdAt',
       title: 'Oluşturulma',
-      render: (menu: Menu) => new Date(menu.createdAt).toLocaleDateString('tr-TR')
+      render: (_value: any, menu: Menu) => new Date(menu.createdAt).toLocaleDateString('tr-TR')
     },
     {
       key: 'actions',
       title: 'İşlemler',
-      render: (menu: Menu) => (
+      render: (_value: any, menu: Menu) => (
         <div className="flex space-x-2">
           <Button
             size="sm"
