@@ -192,7 +192,15 @@ export const Roles: React.FC = () => {
   const columns = [
     { key: 'name' as keyof Role, title: 'Ad' },
     { key: 'scope' as keyof Role, title: 'Kapsam' },
-    { key: 'branch' as keyof Role, title: 'Şube' },
+    {
+      key: 'branch' as keyof Role,
+      title: 'Şube',
+      render: (value: string | Branch | undefined) => {
+        if (!value) return '-';
+        if (typeof value === 'string') return value;
+        return value.name;
+      }
+    },
     {
       key: 'createdAt' as keyof Role,
       title: 'Oluşturulma',

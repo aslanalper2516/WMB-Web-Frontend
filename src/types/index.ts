@@ -54,7 +54,7 @@ export interface Role {
   _id: string;
   name: string;
   scope: 'GLOBAL' | 'BRANCH';
-  branch?: string;
+  branch?: string | Branch;
   createdAt: string;
   updatedAt: string;
 }
