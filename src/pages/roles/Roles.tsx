@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rolePermissionApi } from '../../api/rolePermission';
+import { companyBranchApi } from '../../api/companyBranch';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
 import { Plus, Edit, Trash2, Shield, Eye, X } from 'lucide-react';
-import type { Role, RolePermission, Permission } from '../../types';
+import type { Role, RolePermission, Permission, Branch } from '../../types';
 
 export const Roles: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -32,6 +34,11 @@ export const Roles: React.FC = () => {
   const { data: permissionsData } = useQuery({
     queryKey: ['permissions'],
     queryFn: () => rolePermissionApi.getPermissions(),
+  });
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => companyBranchApi.getBranches(),
   });
 
   const createMutation = useMutation({
@@ -280,11 +287,16 @@ export const Roles: React.FC = () => {
                   </select>
                 </div>
                 {formData.scope === 'BRANCH' && (
-                  <Input
-                    label="Şube ID"
-                    name="branch"
+                  <Select
+                    label="Şube"
                     value={formData.branch}
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                    options={branchesData?.branches?.map((branch: Branch) => ({
+                      value: branch._id,
+                      label: branch.name
+                    })) || []}
+                    placeholder="Şube seçiniz..."
+                    required
                   />
                 )}
                 <div className="flex justify-end space-x-3">
@@ -336,11 +348,16 @@ export const Roles: React.FC = () => {
                   </select>
                 </div>
                 {formData.scope === 'BRANCH' && (
-                  <Input
-                    label="Şube ID"
-                    name="branch"
+                  <Select
+                    label="Şube"
                     value={formData.branch}
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                    options={branchesData?.branches?.map((branch: Branch) => ({
+                      value: branch._id,
+                      label: branch.name
+                    })) || []}
+                    placeholder="Şube seçiniz..."
+                    required
                   />
                 )}
                 <div className="flex justify-end space-x-3">
