@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { menuApi } from '../../api/menu';
 import { categoryProductApi } from '../../api/categoryProduct';
 import { companyBranchApi } from '../../api/companyBranch';
-import type { Menu } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
@@ -20,6 +19,7 @@ export const MenuDetail: React.FC = () => {
   const [showAssignBranch, setShowAssignBranch] = useState(false);
   const [showAssignKitchen, setShowAssignKitchen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [selectedKitchen, setSelectedKitchen] = useState<string>('');
@@ -81,12 +81,13 @@ export const MenuDetail: React.FC = () => {
 
   // Mutasyonlar
   const addCategoryMutation = useMutation({
-    mutationFn: ({ menuId, categoryId }: { menuId: string; categoryId: string }) =>
-      menuApi.addCategoryToMenu(menuId, categoryId),
+    mutationFn: ({ menuId, categoryId, parentId }: { menuId: string; categoryId: string; parentId?: string }) =>
+      menuApi.addCategoryToMenu(menuId, categoryId, parentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu-categories', id] });
       setShowAddCategory(false);
       setSelectedCategory('');
+      setSelectedParentCategory('');
     },
   });
 
@@ -152,7 +153,11 @@ export const MenuDetail: React.FC = () => {
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCategory) return;
-    addCategoryMutation.mutate({ menuId: id!, categoryId: selectedCategory });
+    addCategoryMutation.mutate({ 
+      menuId: id!, 
+      categoryId: selectedCategory,
+      parentId: selectedParentCategory || undefined
+    });
   };
 
   const handleAddProduct = async (e: React.FormEvent) => {
@@ -189,6 +194,53 @@ export const MenuDetail: React.FC = () => {
   const products = productsData?.products || [];
   const branches = branchesData?.branches || [];
   const kitchens = kitchensData?.kitchens || [];
+
+  // Kategorileri hiyerarşik olarak sırala
+  const sortCategoriesHierarchically = (categories: any[]) => {
+    const sorted: any[] = [];
+    const categoryMap = new Map(categories.map(cat => [cat._id, { ...cat, depth: 0 }]));
+    
+    // Her kategorinin derinliğini hesapla
+    const calculateDepth = (catId: string, visited = new Set<string>()): number => {
+      if (visited.has(catId)) return 0; // Sonsuz döngü kontrolü
+      visited.add(catId);
+      
+      const cat = categoryMap.get(catId);
+      if (!cat) return 0;
+      
+      const parentId = typeof cat.parent === 'string' ? cat.parent : cat.parent?._id;
+      if (!parentId) return 0;
+      
+      return 1 + calculateDepth(parentId, visited);
+    };
+    
+    // Her kategori için derinliği hesapla
+    categories.forEach(cat => {
+      const depth = calculateDepth(cat._id);
+      categoryMap.set(cat._id, { ...cat, depth });
+    });
+    
+    // Ana kategorileri bul ve sırala
+    const addCategoryAndChildren = (parentId: string | null, currentDepth: number = 0) => {
+      const children = Array.from(categoryMap.values()).filter(cat => {
+        const catParentId = typeof cat.parent === 'string' ? cat.parent : cat.parent?._id;
+        return (parentId === null && !catParentId) || catParentId === parentId;
+      });
+      
+      // Sıra numarasına göre sırala
+      children.sort((a, b) => (a.order || 0) - (b.order || 0));
+      
+      children.forEach(cat => {
+        sorted.push({ ...cat, depth: currentDepth });
+        addCategoryAndChildren(cat._id, currentDepth + 1);
+      });
+    };
+    
+    addCategoryAndChildren(null);
+    return sorted;
+  };
+
+  const hierarchicalCategories = sortCategoriesHierarchically(menuCategories);
 
   // Menüde olmayan kategorileri filtrele
   const availableCategories = categories.filter(
@@ -278,6 +330,21 @@ export const MenuDetail: React.FC = () => {
                 <h3 className="text-lg font-medium mb-4">Kategori Ekle</h3>
                 <form onSubmit={handleAddCategory} className="space-y-4">
                   <Select
+                    label="Ana Kategori (Opsiyonel)"
+                    value={selectedParentCategory}
+                    onChange={(e) => setSelectedParentCategory(e.target.value)}
+                    options={hierarchicalCategories.map(mc => {
+                      const depth = mc.depth || 0;
+                      const prefix = depth > 0 ? '  '.repeat(depth) + '└─ ' : '';
+                      const label = typeof mc.category === 'string' ? mc.category : mc.category.name;
+                      return {
+                        value: mc._id,
+                        label: prefix + label
+                      };
+                    })}
+                    placeholder="Ana Kategori Seçin (Boş bırakılabilir)"
+                  />
+                  <Select
                     label="Kategori"
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
@@ -295,6 +362,7 @@ export const MenuDetail: React.FC = () => {
                       onClick={() => {
                         setShowAddCategory(false);
                         setSelectedCategory('');
+                        setSelectedParentCategory('');
                       }}
                     >
                       İptal
@@ -312,17 +380,45 @@ export const MenuDetail: React.FC = () => {
           <Card>
             <CardContent>
               <Table
-                data={menuCategories}
+                data={hierarchicalCategories}
                 columns={[
                   {
                     key: 'category',
                     title: 'Kategori',
-                    render: (_value: any, mc: any) => mc.category.name
+                    render: (_value: any, mc: any) => {
+                      const depth = mc.depth || 0;
+                      const indent = depth * 24; // Her seviye için 24px girinti
+                      
+                      return (
+                        <div className="flex items-center" style={{ paddingLeft: `${indent}px` }}>
+                          {depth > 0 && (
+                            <span className="text-gray-400 mr-2">
+                              └─
+                            </span>
+                          )}
+                          <span className={depth > 0 ? 'text-gray-600' : 'font-medium'}>
+                            {mc.category.name}
+                          </span>
+                        </div>
+                      );
+                    }
+                  },
+                  {
+                    key: 'parent',
+                    title: 'Ana Kategori',
+                    render: (_value: any, mc: any) => {
+                      if (!mc.parent) return '-';
+                      return (
+                        <span className="text-sm text-gray-600">
+                          {typeof mc.parent === 'string' ? mc.parent : mc.parent.category?.name || '-'}
+                        </span>
+                      );
+                    }
                   },
                   {
                     key: 'order',
                     title: 'Sıra',
-                    render: (_value: any, mc: any) => mc.order
+                    render: (_value: any, mc: any) => mc.order || '-'
                   },
                   {
                     key: 'isActive',

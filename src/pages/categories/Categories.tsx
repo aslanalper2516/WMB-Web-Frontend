@@ -14,7 +14,6 @@ export const Categories: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState<CreateCategoryRequest>({
     name: '',
-    parent: '',
     description: '',
   });
 
@@ -30,7 +29,7 @@ export const Categories: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsCreateModalOpen(false);
-      setFormData({ name: '', parent: '', description: '' });
+      setFormData({ name: '', description: '' });
     },
   });
 
@@ -41,7 +40,7 @@ export const Categories: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsEditModalOpen(false);
       setSelectedCategory(null);
-      setFormData({ name: '', parent: '', description: '' });
+      setFormData({ name: '', description: '' });
     },
   });
 
@@ -74,7 +73,6 @@ export const Categories: React.FC = () => {
     setSelectedCategory(category);
     setFormData({
       name: category.name,
-      parent: typeof category.parent === 'string' ? category.parent : category.parent?._id || '',
       description: category.description || '',
     });
     setIsEditModalOpen(true);
@@ -180,22 +178,6 @@ export const Categories: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Üst Kategori</label>
-                  <select
-                    name="parent"
-                    value={formData.parent}
-                    onChange={(e) => setFormData({ ...formData, parent: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Üst Kategori Yok</option>
-                    {categories.map((category) => (
-                      <option key={category._id} value={category._id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-700">Açıklama</label>
                   <textarea
                     name="description"
@@ -241,22 +223,6 @@ export const Categories: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Üst Kategori</label>
-                  <select
-                    name="parent"
-                    value={formData.parent}
-                    onChange={(e) => setFormData({ ...formData, parent: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Üst Kategori Yok</option>
-                    {categories.filter(cat => cat._id !== selectedCategory?._id).map((category) => (
-                      <option key={category._id} value={category._id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Açıklama</label>

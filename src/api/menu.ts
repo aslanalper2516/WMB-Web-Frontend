@@ -66,8 +66,12 @@ export const menuApi = {
   },
 
   // Menu Categories
-  addCategoryToMenu: async (menuId: string, categoryId: string): Promise<{ message: string; menuCategory: MenuCategory }> => {
-    return apiClient.post<{ message: string; menuCategory: MenuCategory }>(`/menus/menus/${menuId}/categories`, { category: categoryId });
+  addCategoryToMenu: async (menuId: string, categoryId: string, parentId?: string): Promise<{ message: string; menuCategory: MenuCategory }> => {
+    const data: any = { category: categoryId };
+    if (parentId) {
+      data.parent = parentId;
+    }
+    return apiClient.post<{ message: string; menuCategory: MenuCategory }>(`/menus/menus/${menuId}/categories`, data);
   },
 
   getMenuCategories: async (menuId: string): Promise<{ message: string; menuCategories: MenuCategory[] }> => {

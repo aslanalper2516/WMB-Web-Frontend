@@ -281,6 +281,7 @@ export interface MenuCategory {
   _id: string;
   menu: string | Menu;
   category: string | Category;
+  parent?: string | MenuCategory;
   order: number;
   isActive: boolean;
   createdAt: string;
@@ -322,6 +323,7 @@ export interface CreateMenuBranchRequest {
 export interface CreateMenuCategoryRequest {
   menu: string;
   category: string;
+  parent?: string;
   order?: number;
 }
 
