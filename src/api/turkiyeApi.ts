@@ -21,7 +21,6 @@ export interface District {
 export interface Neighborhood {
   id: number;
   name: string;
-  districtId: number;
   district: {
     id: number;
     name: string;
@@ -35,7 +34,6 @@ export interface Neighborhood {
 export interface Village {
   id: number;
   name: string;
-  districtId: number;
   district: {
     id: number;
     name: string;

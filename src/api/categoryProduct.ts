@@ -38,9 +38,8 @@ export const categoryProductApi = {
   },
 
   // Products
-  getProducts: async (categoryId?: string): Promise<{ message: string; products: Product[] }> => {
-    const url = categoryId ? `/category-product/products?category=${categoryId}` : '/category-product/products';
-    return apiClient.get<{ message: string; products: Product[] }>(url);
+  getProducts: async (): Promise<{ message: string; products: Product[] }> => {
+    return apiClient.get<{ message: string; products: Product[] }>('/category-product/products');
   },
 
   getProductById: async (id: string): Promise<{ message: string; product: Product }> => {

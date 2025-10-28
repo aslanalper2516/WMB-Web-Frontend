@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyBranchApi } from '../../api/companyBranch';
 import { categoryProductApi } from '../../api/categoryProduct';
-import { turkiyeApi, Province, District, Neighborhood } from '../../api/turkiyeApi';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
@@ -21,73 +20,12 @@ export const Branches: React.FC = () => {
     address: '',
     phone: '',
     email: '',
-    province: '',
-    district: '',
-    neighborhood: '',
-    street: '',
     company: '',
     tables: 0,
   });
   const [selectedSalesMethod, setSelectedSalesMethod] = useState('');
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
-  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
-  const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
 
   const queryClient = useQueryClient();
-
-  // İlleri yükle
-  useEffect(() => {
-    const loadProvinces = async () => {
-      try {
-        const provincesData = await turkiyeApi.getProvinces();
-        setProvinces(provincesData);
-      } catch (error) {
-        console.error('Error loading provinces:', error);
-      }
-    };
-    loadProvinces();
-  }, []);
-
-  // İl seçildiğinde ilçeleri yükle
-  useEffect(() => {
-    const loadDistricts = async () => {
-      if (selectedProvinceId) {
-        try {
-          const districtsData = await turkiyeApi.getDistrictsByProvince(selectedProvinceId);
-          setDistricts(districtsData);
-        } catch (error) {
-          console.error('Error loading districts:', error);
-          setDistricts([]);
-        }
-      } else {
-        setDistricts([]);
-      }
-      setNeighborhoods([]);
-      setSelectedDistrictId(null);
-    };
-    loadDistricts();
-  }, [selectedProvinceId]);
-
-  // İlçe seçildiğinde mahalleleri yükle
-  useEffect(() => {
-    const loadNeighborhoods = async () => {
-      if (selectedDistrictId) {
-        try {
-          const neighborhoodsData = await turkiyeApi.getNeighborhoodsByDistrict(selectedDistrictId);
-          setNeighborhoods(neighborhoodsData);
-        } catch (error) {
-          console.error('Error loading neighborhoods:', error);
-          setNeighborhoods([]);
-        }
-      } else {
-        setNeighborhoods([]);
-      }
-    };
-    loadNeighborhoods();
-  }, [selectedDistrictId]);
 
   const { data: branchesData, isLoading: branchesLoading } = useQuery({
     queryKey: ['branches'],
@@ -115,12 +53,7 @@ export const Branches: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       setIsCreateModalOpen(false);
-      setFormData({ name: '', address: '', phone: '', email: '', province: '', district: '', neighborhood: '', street: '', company: '', tables: 0 });
-      setSelectedProvinceId(null);
-      setSelectedDistrictId(null);
-      setDistricts([]);
-      setNeighborhoods([]);
-      setErrorMessage('');
+      setFormData({ name: '', address: '', phone: '', email: '', company: '', tables: 0 });
     },
   });
 
@@ -131,12 +64,7 @@ export const Branches: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       setIsEditModalOpen(false);
       setSelectedBranch(null);
-      setFormData({ name: '', address: '', phone: '', email: '', province: '', district: '', neighborhood: '', street: '', company: '', tables: 0 });
-      setSelectedProvinceId(null);
-      setSelectedDistrictId(null);
-      setDistricts([]);
-      setNeighborhoods([]);
-      setErrorMessage('');
+      setFormData({ name: '', address: '', phone: '', email: '', company: '', tables: 0 });
     },
   });
 
@@ -187,36 +115,13 @@ export const Branches: React.FC = () => {
     setSelectedBranch(branch);
     setFormData({
       name: branch.name,
-      address: branch.address || '',
+      address: branch.address,
       phone: branch.phone,
       email: branch.email,
-      province: branch.province || '',
-      district: branch.district || '',
-      neighborhood: branch.neighborhood || '',
-      street: branch.street || '',
       company: branch.company,
       tables: branch.tables,
     });
-
-    // İl seçimini ayarla
-    if (branch.province) {
-      const province = provinces.find(p => p.name === branch.province);
-      if (province) {
-        setSelectedProvinceId(province.id);
-      }
-    }
-
     setIsEditModalOpen(true);
-  };
-
-  const openCreateModal = () => {
-    setFormData({ name: '', address: '', phone: '', email: '', province: '', district: '', neighborhood: '', street: '', company: '', tables: 0 });
-    setSelectedProvinceId(null);
-    setSelectedDistrictId(null);
-    setDistricts([]);
-    setNeighborhoods([]);
-    setErrorMessage('');
-    setIsCreateModalOpen(true);
   };
 
   const openSalesMethodsModal = (branch: Branch) => {
@@ -299,7 +204,7 @@ export const Branches: React.FC = () => {
             Şube bilgilerini yönetin
           </p>
         </div>
-        <Button onClick={openCreateModal}>
+        <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Yeni Şube
         </Button>
@@ -317,48 +222,39 @@ export const Branches: React.FC = () => {
       {/* Create Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Şube</h3>
-              {errorMessage && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                  {errorMessage}
-                </div>
-              )}
               <form onSubmit={handleCreate} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Şube Adı"
-                    name="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="Telefon"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="E-posta"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="Masa Sayısı"
-                    name="tables"
-                    type="number"
-                    value={formData.tables}
-                    onChange={(e) => setFormData({ ...formData, tables: parseInt(e.target.value) })}
-                    required
-                  />
-                </div>
-
+                <Input
+                  label="Şube Adı"
+                  name="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Adres"
+                  name="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Telefon"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+                <Input
+                  label="E-posta"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Şirket</label>
                   <select
@@ -376,113 +272,19 @@ export const Branches: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      İl
-                    </label>
-                    <select
-                      name="province"
-                      value={formData.province}
-                      onChange={(e) => {
-                        const selectedProvince = provinces.find(p => p.name === e.target.value);
-                        setSelectedProvinceId(selectedProvince?.id || null);
-                        setFormData({ ...formData, province: e.target.value, district: '', neighborhood: '', street: '' });
-                      }}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">İl Seçin</option>
-                      {provinces.map((province) => (
-                        <option key={province.id} value={province.name}>
-                          {province.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      İlçe
-                    </label>
-                    <select
-                      name="district"
-                      value={formData.district}
-                      onChange={(e) => {
-                        const selectedDistrict = districts.find(d => d.name === e.target.value);
-                        setSelectedDistrictId(selectedDistrict?.id || null);
-                        setFormData({ ...formData, district: e.target.value, neighborhood: '', street: '' });
-                      }}
-                      disabled={!selectedProvinceId}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">İlçe Seçin</option>
-                      {districts.map((district) => (
-                        <option key={district.id} value={district.name}>
-                          {district.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Mahalle
-                    </label>
-                    <select
-                      name="neighborhood"
-                      value={formData.neighborhood}
-                      onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value, street: '' })}
-                      disabled={!selectedDistrictId}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">Mahalle Seçin</option>
-                      {neighborhoods.map((neighborhood) => (
-                        <option key={neighborhood.id} value={neighborhood.name}>
-                          {neighborhood.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Sokak
-                    </label>
-                    <Input
-                      name="street"
-                      value={formData.street}
-                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Açık Adres <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    name="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Detaylı adres bilgisi giriniz"
-                    required
-                  />
-                </div>
-
+                <Input
+                  label="Masa Sayısı"
+                  name="tables"
+                  type="number"
+                  value={formData.tables}
+                  onChange={(e) => setFormData({ ...formData, tables: parseInt(e.target.value) })}
+                  required
+                />
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setIsCreateModalOpen(false);
-                      setFormData({ name: '', address: '', phone: '', email: '', province: '', district: '', neighborhood: '', street: '', company: '', tables: 0 });
-                      setSelectedProvinceId(null);
-                      setSelectedDistrictId(null);
-                      setDistricts([]);
-                      setNeighborhoods([]);
-                      setErrorMessage('');
-                    }}
+                    onClick={() => setIsCreateModalOpen(false)}
                   >
                     İptal
                   </Button>
@@ -502,48 +304,39 @@ export const Branches: React.FC = () => {
       {/* Edit Modal */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Şube Düzenle</h3>
-              {errorMessage && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                  {errorMessage}
-                </div>
-              )}
               <form onSubmit={handleEdit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Şube Adı"
-                    name="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="Telefon"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="E-posta"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="Masa Sayısı"
-                    name="tables"
-                    type="number"
-                    value={formData.tables}
-                    onChange={(e) => setFormData({ ...formData, tables: parseInt(e.target.value) })}
-                    required
-                  />
-                </div>
-
+                <Input
+                  label="Şube Adı"
+                  name="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Adres"
+                  name="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Telefon"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+                <Input
+                  label="E-posta"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Şirket</label>
                   <select
@@ -561,114 +354,19 @@ export const Branches: React.FC = () => {
                     ))}
                   </select>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      İl
-                    </label>
-                    <select
-                      name="province"
-                      value={formData.province}
-                      onChange={(e) => {
-                        const selectedProvince = provinces.find(p => p.name === e.target.value);
-                        setSelectedProvinceId(selectedProvince?.id || null);
-                        setFormData({ ...formData, province: e.target.value, district: '', neighborhood: '', street: '' });
-                      }}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">İl Seçin</option>
-                      {provinces.map((province) => (
-                        <option key={province.id} value={province.name}>
-                          {province.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      İlçe
-                    </label>
-                    <select
-                      name="district"
-                      value={formData.district}
-                      onChange={(e) => {
-                        const selectedDistrict = districts.find(d => d.name === e.target.value);
-                        setSelectedDistrictId(selectedDistrict?.id || null);
-                        setFormData({ ...formData, district: e.target.value, neighborhood: '', street: '' });
-                      }}
-                      disabled={!selectedProvinceId}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">İlçe Seçin</option>
-                      {districts.map((district) => (
-                        <option key={district.id} value={district.name}>
-                          {district.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Mahalle
-                    </label>
-                    <select
-                      name="neighborhood"
-                      value={formData.neighborhood}
-                      onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value, street: '' })}
-                      disabled={!selectedDistrictId}
-                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">Mahalle Seçin</option>
-                      {neighborhoods.map((neighborhood) => (
-                        <option key={neighborhood.id} value={neighborhood.name}>
-                          {neighborhood.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Sokak
-                    </label>
-                    <Input
-                      name="street"
-                      value={formData.street}
-                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Açık Adres <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    name="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Detaylı adres bilgisi giriniz"
-                    required
-                  />
-                </div>
-
+                <Input
+                  label="Masa Sayısı"
+                  name="tables"
+                  type="number"
+                  value={formData.tables}
+                  onChange={(e) => setFormData({ ...formData, tables: parseInt(e.target.value) })}
+                  required
+                />
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      setIsEditModalOpen(false);
-                      setSelectedBranch(null);
-                      setFormData({ name: '', address: '', phone: '', email: '', province: '', district: '', neighborhood: '', street: '', company: '', tables: 0 });
-                      setSelectedProvinceId(null);
-                      setSelectedDistrictId(null);
-                      setDistricts([]);
-                      setNeighborhoods([]);
-                      setErrorMessage('');
-                    }}
+                    onClick={() => setIsEditModalOpen(false)}
                   >
                     İptal
                   </Button>

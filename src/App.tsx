@@ -11,6 +11,8 @@ import { Branches } from './pages/branches/Branches';
 import { Categories } from './pages/categories/Categories';
 import { Products } from './pages/products/Products';
 import { Kitchens } from './pages/kitchens/Kitchens';
+import { Menus } from './pages/menus/Menus';
+import { MenuDetail } from './pages/menus/MenuDetail';
 import { Units } from './pages/units/Units';
 import { Roles } from './pages/roles/Roles';
 import { Permissions } from './pages/permissions/Permissions';
@@ -133,6 +135,22 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <Kitchens />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/menus"
+          element={
+            <ProtectedRoute>
+              <Menus />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/menus/:id"
+          element={
+            <ProtectedRoute>
+              <MenuDetail />
             </ProtectedRoute>
           }
         />

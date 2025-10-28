@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import type { Kitchen, CreateKitchenRequest, Company, Branch } from '../../types';
+import type { Kitchen, CreateKitchenRequest } from '../../types';
 import { companyBranchApi } from '../../api/companyBranch';
 
 export const Kitchens: React.FC = () => {
@@ -85,8 +85,8 @@ export const Kitchens: React.FC = () => {
     setSelectedKitchen(kitchen);
     setFormData({
       name: kitchen.name,
-      company: kitchen.company || '',
-      branch: kitchen.branch || '',
+      company: typeof kitchen.company === 'string' ? kitchen.company : kitchen.company._id,
+      branch: typeof kitchen.branch === 'string' ? kitchen.branch : kitchen.branch._id,
     });
     setIsEditModalOpen(true);
   };
@@ -96,22 +96,30 @@ export const Kitchens: React.FC = () => {
     { 
       key: 'company' as keyof Kitchen, 
       title: 'Şirket',
-      render: (value: any) => typeof value === 'object' ? value?.name || 'N/A' : value || 'N/A'
+      render: (item: Kitchen) => {
+        const value = item.company;
+        if (typeof value === 'string') return value;
+        return value?.name || 'N/A';
+      }
     },
     { 
       key: 'branch' as keyof Kitchen, 
       title: 'Şube',
-      render: (value: any) => typeof value === 'object' ? value?.name || 'N/A' : value || 'N/A'
+      render: (item: Kitchen) => {
+        const value = item.branch;
+        if (typeof value === 'string') return value;
+        return value?.name || 'N/A';
+      }
     },
     {
       key: 'createdAt' as keyof Kitchen,
       title: 'Oluşturulma',
-      render: (value: string) => new Date(value).toLocaleDateString('tr-TR'),
+      render: (item: Kitchen) => new Date(item.createdAt).toLocaleDateString('tr-TR'),
     },
     {
       key: 'actions' as keyof Kitchen,
       title: 'İşlemler',
-      render: (_: any, item: Kitchen) => (
+      render: (item: Kitchen) => (
         <div className="flex space-x-2">
           <Button
             size="sm"

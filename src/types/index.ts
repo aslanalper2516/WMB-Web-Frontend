@@ -85,13 +85,9 @@ export interface Company {
 export interface Branch {
   _id: string;
   name: string;
-  address?: string;
+  address: string;
   phone: string;
   email: string;
-  province?: string;
-  district?: string;
-  neighborhood?: string;
-  street?: string;
   company: string;
   tables: number;
   isDeleted: boolean;
@@ -112,13 +108,9 @@ export interface CreateCompanyRequest {
 
 export interface CreateBranchRequest {
   name: string;
-  address?: string;
+  address: string;
   phone: string;
   email: string;
-  province?: string;
-  district?: string;
-  neighborhood?: string;
-  street?: string;
   company: string;
   tables: number;
 }
@@ -127,8 +119,9 @@ export interface CreateBranchRequest {
 export interface Category {
   _id: string;
   name: string;
+  parent?: string | Category;
   description?: string;
-  isDeleted: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -137,14 +130,8 @@ export interface Product {
   _id: string;
   name: string;
   description?: string;
-  category: string;
-  kitchen?: string;
-  defaultSalesMethod?: string;
-  branch?: string;
-  company?: string;
-  price: number;
-  currency: string;
-  isDeleted: boolean;
+  defaultSalesMethod: string | { _id: string; name: string };
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,6 +140,8 @@ export interface Kitchen {
   _id: string;
   name: string;
   description?: string;
+  company: string | Company;
+  branch: string | Branch;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -183,25 +172,13 @@ export interface ProductPrice {
 export interface CreateCategoryRequest {
   name: string;
   parent?: string;
-  company: string;
-  branch: string;
-}
-
-export interface CurrencyUnit {
-  _id: string;
-  name: string;
-  symbol: string;
-  createdAt: string;
-  updatedAt: string;
+  description?: string;
 }
 
 export interface CreateProductRequest {
   name: string;
-  category: string;
-  kitchen: string;
+  description?: string;
   defaultSalesMethod: string;
-  branch: string;
-  company: string;
 }
 
 export interface CreateKitchenRequest {
@@ -270,4 +247,90 @@ export interface BranchSalesMethod {
 export interface CreateBranchSalesMethodRequest {
   branch: string;
   salesMethod: string;
+}
+
+// Menu Types
+export interface Menu {
+  _id: string;
+  name: string;
+  description?: string;
+  company: string | Company;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MenuBranch {
+  _id: string;
+  menu: string | Menu;
+  branch: string | Branch;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MenuCategory {
+  _id: string;
+  menu: string | Menu;
+  category: string | Category;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MenuProduct {
+  _id: string;
+  menu: string | Menu;
+  category: string | Category;
+  product: string | Product;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductKitchen {
+  _id: string;
+  product: string | Product;
+  kitchen: string | Kitchen;
+  branch: string | Branch;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMenuRequest {
+  name: string;
+  description?: string;
+  company: string;
+}
+
+export interface CreateMenuBranchRequest {
+  menu: string;
+  branch: string;
+}
+
+export interface CreateMenuCategoryRequest {
+  menu: string;
+  category: string;
+  order?: number;
+}
+
+export interface CreateMenuProductRequest {
+  menu: string;
+  category: string;
+  product: string;
+  order?: number;
+}
+
+export interface CreateProductKitchenRequest {
+  product: string;
+  kitchen: string;
+  branch: string;
+}
+
+export interface MenuStructure {
+  menu: Menu;
+  categories: (MenuCategory & { products: MenuProduct[] })[];
 }

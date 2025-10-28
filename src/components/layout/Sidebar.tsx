@@ -9,7 +9,8 @@ import {
   Shield, 
   Users,
   Ruler,
-  User
+  User,
+  Menu as MenuIcon
 } from 'lucide-react';
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Kategoriler', href: '/categories', icon: Package },
   { name: 'Ürünler', href: '/products', icon: Package },
   { name: 'Mutfaklar', href: '/kitchens', icon: ChefHat },
+  { name: 'Menüler', href: '/menus', icon: MenuIcon },
   { name: 'Birimler', href: '/units', icon: Ruler },
   { name: 'Roller', href: '/roles', icon: Shield },
   { name: 'İzinler', href: '/permissions', icon: Shield },

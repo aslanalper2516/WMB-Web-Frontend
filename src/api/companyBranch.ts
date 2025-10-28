@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { Company, CreateCompanyRequest, Branch, CreateBranchRequest } from '../types';
+import type { Company, CreateCompanyRequest, Branch, CreateBranchRequest, Kitchen } from '../types';
 
 export const companyBranchApi = {
   // Companies
@@ -63,5 +63,9 @@ export const companyBranchApi = {
       ? `/companies-branches/addresses/${type}?parentId=${parentId}`
       : `/companies-branches/addresses/${type}`;
     return apiClient.get<{ message: string; addresses: { id: string; name: string }[] }>(url);
+  },
+    // Kitchens
+  getKitchens: async (branchId: string): Promise<{ message: string; kitchens: Kitchen[] }> => {
+  return apiClient.get<{ message: string; kitchens: Kitchen[] }>(`/companies-branches/branches/${branchId}/kitchens`);
   },
 };
