@@ -5,15 +5,15 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
-import { Plus, Edit, Trash2, Ruler, DollarSign, ShoppingCart } from 'lucide-react';
-import type { AmountUnit, CurrencyUnit, SalesMethod, CreateAmountUnitRequest, CreateCurrencyUnitRequest, CreateSalesMethodRequest } from '../../types';
+import { Plus, Edit, Trash2, Ruler, DollarSign } from 'lucide-react';
+import type { AmountUnit, CurrencyUnit, CreateAmountUnitRequest, CreateCurrencyUnitRequest } from '../../types';
 
 export const Units: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'amount' | 'currency' | 'sales'>('amount');
+  const [activeTab, setActiveTab] = useState<'amount' | 'currency'>('amount');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState<AmountUnit | CurrencyUnit | SalesMethod | null>(null);
-  const [formData, setFormData] = useState<CreateAmountUnitRequest | CreateCurrencyUnitRequest | CreateSalesMethodRequest>({
+  const [selectedUnit, setSelectedUnit] = useState<AmountUnit | CurrencyUnit | null>(null);
+  const [formData, setFormData] = useState<CreateAmountUnitRequest | CreateCurrencyUnitRequest>({
     name: '',
   });
 
@@ -27,11 +27,6 @@ export const Units: React.FC = () => {
   const { data: currencyUnitsData, isLoading: currencyUnitsLoading } = useQuery({
     queryKey: ['currency-units'],
     queryFn: () => unitsApi.getCurrencyUnits(),
-  });
-
-  const { data: salesMethodsData, isLoading: salesMethodsLoading } = useQuery({
-    queryKey: ['sales-methods'],
-    queryFn: () => unitsApi.getSalesMethods(),
   });
 
   const createAmountUnitMutation = useMutation({
@@ -88,41 +83,12 @@ export const Units: React.FC = () => {
     },
   });
 
-  const createSalesMethodMutation = useMutation({
-    mutationFn: unitsApi.createSalesMethod,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
-      setIsCreateModalOpen(false);
-      setFormData({ name: '', description: '' });
-    },
-  });
-
-  const updateSalesMethodMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateSalesMethodRequest> }) =>
-      unitsApi.updateSalesMethod(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
-      setIsEditModalOpen(false);
-      setSelectedUnit(null);
-      setFormData({ name: '', description: '' });
-    },
-  });
-
-  const deleteSalesMethodMutation = useMutation({
-    mutationFn: unitsApi.deleteSalesMethod,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
-    },
-  });
-
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (activeTab === 'amount') {
       createAmountUnitMutation.mutate(formData as CreateAmountUnitRequest);
-    } else if (activeTab === 'currency') {
-      createCurrencyUnitMutation.mutate(formData as CreateCurrencyUnitRequest);
     } else {
-      createSalesMethodMutation.mutate(formData as CreateSalesMethodRequest);
+      createCurrencyUnitMutation.mutate(formData as CreateCurrencyUnitRequest);
     }
   };
 
@@ -131,10 +97,8 @@ export const Units: React.FC = () => {
     if (selectedUnit) {
       if (activeTab === 'amount') {
         updateAmountUnitMutation.mutate({ id: selectedUnit._id, data: formData as Partial<CreateAmountUnitRequest> });
-      } else if (activeTab === 'currency') {
-        updateCurrencyUnitMutation.mutate({ id: selectedUnit._id, data: formData as Partial<CreateCurrencyUnitRequest> });
       } else {
-        updateSalesMethodMutation.mutate({ id: selectedUnit._id, data: formData as Partial<CreateSalesMethodRequest> });
+        updateCurrencyUnitMutation.mutate({ id: selectedUnit._id, data: formData as Partial<CreateCurrencyUnitRequest> });
       }
     }
   };
@@ -143,19 +107,16 @@ export const Units: React.FC = () => {
     if (window.confirm('Bu birimi silmek istediğinizden emin misiniz?')) {
       if (activeTab === 'amount') {
         deleteAmountUnitMutation.mutate(id);
-      } else if (activeTab === 'currency') {
-        deleteCurrencyUnitMutation.mutate(id);
       } else {
-        deleteSalesMethodMutation.mutate(id);
+        deleteCurrencyUnitMutation.mutate(id);
       }
     }
   };
 
-  const openEditModal = (unit: AmountUnit | CurrencyUnit | SalesMethod) => {
+  const openEditModal = (unit: AmountUnit | CurrencyUnit) => {
     setSelectedUnit(unit);
     setFormData({
       name: unit.name,
-      ...(activeTab === 'sales' && 'description' in unit ? { description: unit.description || '' } : {}),
     });
     setIsEditModalOpen(true);
   };
@@ -222,39 +183,7 @@ export const Units: React.FC = () => {
     },
   ];
 
-  const salesColumns = [
-    { key: 'name' as keyof SalesMethod, title: 'Ad' },
-    { key: 'description' as keyof SalesMethod, title: 'Açıklama' },
-    {
-      key: 'createdAt' as keyof SalesMethod,
-      title: 'Oluşturulma',
-      render: (value: string) => new Date(value).toLocaleDateString('tr-TR'),
-    },
-    {
-      key: 'actions' as keyof SalesMethod,
-      title: 'İşlemler',
-      render: (_: any, item: SalesMethod) => (
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openEditModal(item)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => handleDelete(item._id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
-  if (amountUnitsLoading || currencyUnitsLoading || salesMethodsLoading) {
+  if (amountUnitsLoading || currencyUnitsLoading) {
     return <div>Yükleniyor...</div>;
   }
 
@@ -293,17 +222,6 @@ export const Units: React.FC = () => {
               <DollarSign className="h-5 w-5 inline mr-2" />
               Para Birimleri
             </button>
-            <button
-              onClick={() => setActiveTab('sales')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'sales'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <ShoppingCart className="h-5 w-5 inline mr-2" />
-              Satış Yöntemleri
-            </button>
           </nav>
         </div>
       </div>
@@ -317,17 +235,11 @@ export const Units: React.FC = () => {
             ) : (
               <p className="text-center text-gray-500 py-8">Henüz hiç miktar birimi oluşturulmamış.</p>
             )
-          ) : activeTab === 'currency' ? (
+          ) : (
             currencyUnitsData?.units && currencyUnitsData.units.length > 0 ? (
               <Table data={currencyUnitsData.units} columns={currencyColumns} />
             ) : (
               <p className="text-center text-gray-500 py-8">Henüz hiç para birimi oluşturulmamış.</p>
-            )
-          ) : (
-            salesMethodsData?.methods && salesMethodsData.methods.length > 0 ? (
-              <Table data={salesMethodsData.methods} columns={salesColumns} />
-            ) : (
-              <p className="text-center text-gray-500 py-8">Henüz hiç satış yöntemi oluşturulmamış.</p>
             )
           )}
         </CardContent>
@@ -339,24 +251,16 @@ export const Units: React.FC = () => {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Yeni {activeTab === 'amount' ? 'Miktar' : activeTab === 'currency' ? 'Para' : 'Satış Yöntemi'} {activeTab === 'sales' ? '' : 'Birimi'}
+                Yeni {activeTab === 'amount' ? 'Miktar' : 'Para'} Birimi
               </h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <Input
-                  label={`${activeTab === 'amount' ? 'Miktar' : activeTab === 'currency' ? 'Para' : 'Satış Yöntemi'} ${activeTab === 'sales' ? 'Adı' : 'Birimi Adı'}`}
+                  label={`${activeTab === 'amount' ? 'Miktar' : 'Para'} Birimi Adı`}
                   name="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
-                {activeTab === 'sales' && (
-                  <Input
-                    label="Açıklama (Opsiyonel)"
-                    name="description"
-                    value={(formData as CreateSalesMethodRequest).description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                )}
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
@@ -370,9 +274,7 @@ export const Units: React.FC = () => {
                     loading={
                       activeTab === 'amount' 
                         ? createAmountUnitMutation.isPending 
-                        : activeTab === 'currency' 
-                        ? createCurrencyUnitMutation.isPending 
-                        : createSalesMethodMutation.isPending
+                        : createCurrencyUnitMutation.isPending
                     }
                   >
                     Oluştur
@@ -390,24 +292,16 @@ export const Units: React.FC = () => {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {activeTab === 'amount' ? 'Miktar' : activeTab === 'currency' ? 'Para' : 'Satış Yöntemi'} {activeTab === 'sales' ? 'Düzenle' : 'Birimi Düzenle'}
+                {activeTab === 'amount' ? 'Miktar' : 'Para'} Birimi Düzenle
               </h3>
               <form onSubmit={handleUpdate} className="space-y-4">
                 <Input
-                  label={`${activeTab === 'amount' ? 'Miktar' : activeTab === 'currency' ? 'Para' : 'Satış Yöntemi'} ${activeTab === 'sales' ? 'Adı' : 'Birimi Adı'}`}
+                  label={`${activeTab === 'amount' ? 'Miktar' : 'Para'} Birimi Adı`}
                   name="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
-                {activeTab === 'sales' && (
-                  <Input
-                    label="Açıklama (Opsiyonel)"
-                    name="description"
-                    value={(formData as CreateSalesMethodRequest).description || ''}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                )}
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
@@ -421,9 +315,7 @@ export const Units: React.FC = () => {
                     loading={
                       activeTab === 'amount' 
                         ? updateAmountUnitMutation.isPending 
-                        : activeTab === 'currency' 
-                        ? updateCurrencyUnitMutation.isPending 
-                        : updateSalesMethodMutation.isPending
+                        : updateCurrencyUnitMutation.isPending
                     }
                   >
                     Güncelle

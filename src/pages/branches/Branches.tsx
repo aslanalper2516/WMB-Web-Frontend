@@ -2,20 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyBranchApi } from '../../api/companyBranch';
 import { categoryProductApi } from '../../api/categoryProduct';
+import { authApi } from '../../api/auth';
 import { turkiyeApi, type Province, type District, type Neighborhood } from '../../api/turkiyeApi';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
-import { Plus, Edit, Trash2, ShoppingCart } from 'lucide-react';
+import { Plus, Edit, Trash2, ShoppingCart, UserCog } from 'lucide-react';
 import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod } from '../../types';
 
 export const Branches: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSalesMethodsModalOpen, setIsSalesMethodsModalOpen] = useState(false);
+  const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const [selectedManager, setSelectedManager] = useState<string>('');
   const [formData, setFormData] = useState<CreateBranchRequest>({
     name: '',
     phone: '',
@@ -100,6 +103,16 @@ export const Branches: React.FC = () => {
     queryFn: () => companyBranchApi.getCompanies(),
   });
 
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const result = await authApi.getUsers();
+      console.log('📋 Users data received (Branch):', result);
+      console.log('👤 First user (Branch):', result.users[0]);
+      return result;
+    },
+  });
+
   const { data: salesMethodsData } = useQuery({
     queryKey: ['salesMethods'],
     queryFn: () => categoryProductApi.getSalesMethods(),
@@ -138,6 +151,21 @@ export const Branches: React.FC = () => {
     },
   });
 
+  const assignManagerMutation = useMutation({
+    mutationFn: ({ id, managerId }: { id: string; managerId: string }) => {
+      console.log('🔍 Assigning manager to branch:', { id, managerId, type: typeof managerId });
+      const payload = { manager: managerId };
+      console.log('📦 Payload:', payload);
+      return companyBranchApi.updateBranch(id, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
+      setIsManagerModalOpen(false);
+      setSelectedManager('');
+      setSelectedBranch(null);
+    },
+  });
+
 
   const assignSalesMethodMutation = useMutation({
     mutationFn: ({ branchId, salesMethodId }: { branchId: string; salesMethodId: string }) =>
@@ -171,6 +199,18 @@ export const Branches: React.FC = () => {
   const handleDelete = (id: string) => {
     if (window.confirm('Bu şubeyi silmek istediğinizden emin misiniz?')) {
       deleteMutation.mutate(id);
+    }
+  };
+
+  const openManagerModal = (branch: Branch) => {
+    setSelectedBranch(branch);
+    setSelectedManager('');
+    setIsManagerModalOpen(true);
+  };
+
+  const handleAssignManager = () => {
+    if (selectedBranch && selectedManager) {
+      assignManagerMutation.mutate({ id: selectedBranch._id, managerId: selectedManager });
     }
   };
 
@@ -307,6 +347,14 @@ export const Branches: React.FC = () => {
             onClick={() => openEditModal(item)}
           >
             <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => openManagerModal(item)}
+            title="Yönetici Ata"
+          >
+            <UserCog className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
@@ -752,6 +800,98 @@ export const Branches: React.FC = () => {
                       Ata
                     </Button>
                   </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manager Modal */}
+      {isManagerModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Yönetici Ata: {selectedBranch?.name}
+              </h3>
+              <div className="space-y-4">
+                {selectedBranch?.manager && (() => {
+                  const managerId = typeof selectedBranch.manager === 'string' 
+                    ? selectedBranch.manager 
+                    : (selectedBranch.manager._id || selectedBranch.manager.id);
+                  const managerUser = usersData?.users.find(u => (u._id || u.id) === managerId);
+                  
+                  return (
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">
+                        Mevcut Yönetici
+                      </p>
+                      <div className="flex items-start space-x-2">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm font-medium">
+                              {managerUser?.name?.charAt(0).toUpperCase() || '?'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {managerUser?.name || 'Bilinmiyor'}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            ✉️ {managerUser?.email || 'Email bulunamadı'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Yeni Yönetici Seç
+                  </label>
+                  <select
+                    value={selectedManager}
+                    onChange={(e) => {
+                      console.log('🎯 Selected manager ID (Branch):', e.target.value);
+                      setSelectedManager(e.target.value);
+                    }}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Yönetici Seçin</option>
+                    {usersData?.users.map((user) => {
+                      const userId = user._id || user.id;
+                      console.log('👤 User option (Branch):', { id: user.id, _id: user._id, userId, name: user.name });
+                      return (
+                        <option key={userId} value={userId}>
+                          {user.name} ({user.email})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsManagerModalOpen(false);
+                      setSelectedManager('');
+                      setSelectedBranch(null);
+                    }}
+                  >
+                    İptal
+                  </Button>
+                  <Button
+                    onClick={handleAssignManager}
+                    loading={assignManagerMutation.isPending}
+                    disabled={!selectedManager}
+                  >
+                    Ata
+                  </Button>
                 </div>
               </div>
             </div>

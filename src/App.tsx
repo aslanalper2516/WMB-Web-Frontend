@@ -14,6 +14,7 @@ import { Kitchens } from './pages/kitchens/Kitchens';
 import { Menus } from './pages/menus/Menus';
 import { MenuDetail } from './pages/menus/MenuDetail';
 import { Units } from './pages/units/Units';
+import { SalesMethods } from './pages/salesMethods/SalesMethods';
 import { Roles } from './pages/roles/Roles';
 import { Permissions } from './pages/permissions/Permissions';
 import { Users } from './pages/users/Users';
@@ -159,6 +160,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <Units />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/sales-methods"
+          element={
+            <ProtectedRoute>
+              <SalesMethods />
             </ProtectedRoute>
           }
         />

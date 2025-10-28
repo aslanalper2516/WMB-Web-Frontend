@@ -10,7 +10,8 @@ import {
   Users,
   Ruler,
   User,
-  Menu as MenuIcon
+  Menu as MenuIcon,
+  ShoppingCart
 } from 'lucide-react';
 
 const navigation = [
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Mutfaklar', href: '/kitchens', icon: ChefHat },
   { name: 'Menüler', href: '/menus', icon: MenuIcon },
   { name: 'Birimler', href: '/units', icon: Ruler },
+  { name: 'Satış Yöntemleri', href: '/sales-methods', icon: ShoppingCart },
   { name: 'Roller', href: '/roles', icon: Shield },
   { name: 'İzinler', href: '/permissions', icon: Shield },
   { name: 'Kullanıcılar', href: '/users', icon: Users },

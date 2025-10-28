@@ -1,8 +1,10 @@
 // Auth Types
 export interface User {
   id: string;
+  _id: string;
   name: string;
   email: string;
+  phone?: string;
   role: string | { _id: string; name: string };
   branch?: string | { _id: string; name: string };
   company?: string | { _id: string; name: string };
@@ -77,6 +79,9 @@ export interface Company {
   district?: string;
   neighborhood?: string;
   street?: string;
+  manager?: string | User;
+  managerEmail?: string;
+  managerPhone?: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -94,6 +99,9 @@ export interface Branch {
   neighborhood?: string;
   street?: string;
   address: string;
+  manager?: string | User;
+  managerEmail?: string;
+  managerPhone?: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +116,9 @@ export interface CreateCompanyRequest {
   neighborhood?: string;
   street?: string;
   address?: string;
+  manager?: string; // User ID
+  managerEmail?: string;
+  managerPhone?: string;
 }
 
 export interface CreateBranchRequest {
@@ -121,6 +132,9 @@ export interface CreateBranchRequest {
   neighborhood?: string;
   street?: string;
   address: string;
+  manager?: string; // User ID
+  managerEmail?: string;
+  managerPhone?: string;
 }
 
 // Category Product Types
