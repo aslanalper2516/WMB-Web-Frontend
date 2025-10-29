@@ -51,9 +51,24 @@ export const Categories: React.FC = () => {
     },
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      categoryProductApi.updateCategory(id, { isActive }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
+  };
+
+  const handleToggleActive = (category: Category) => {
+    toggleActiveMutation.mutate({
+      id: category._id,
+      isActive: !category.isActive,
+    });
   };
 
   const handleUpdate = (e: React.FormEvent) => {
@@ -92,19 +107,27 @@ export const Categories: React.FC = () => {
       render: (_value: any, item: Category) => item.description || '-',
     },
     {
-      key: 'parent',
-      title: 'Üst Kategori',
-      render: (_value: any, item: Category) => {
-        if (typeof item.parent === 'string') {
-          return item.parent;
-        }
-        return item.parent?.name || '-';
-      },
-    },
-    {
       key: 'isActive',
       title: 'Durum',
-      render: (_value: any, item: Category) => (item.isActive ? 'Aktif' : 'Pasif'),
+      render: (_value: any, item: Category) => (
+        <button
+          onClick={() => handleToggleActive(item)}
+          disabled={toggleActiveMutation.isPending}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+            item.isActive ? 'bg-green-500' : 'bg-gray-300'
+          } ${toggleActiveMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          title={item.isActive ? 'Aktif - Pasif yapmak için tıklayın' : 'Pasif - Aktif yapmak için tıklayın'}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              item.isActive ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+          <span className="sr-only">
+            {item.isActive ? 'Deaktif et' : 'Aktif et'}
+          </span>
+        </button>
+      ),
     },
     {
       key: 'createdAt',

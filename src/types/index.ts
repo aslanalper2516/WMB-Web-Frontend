@@ -242,6 +242,7 @@ export interface SalesMethod {
   _id: string;
   name: string;
   description?: string;
+  parent?: string | SalesMethod;
   createdAt: string;
   updatedAt: string;
 }
@@ -249,6 +250,7 @@ export interface SalesMethod {
 export interface CreateSalesMethodRequest {
   name: string;
   description?: string;
+  parent?: string;
 }
 
 export interface CreateProductPriceRequest {

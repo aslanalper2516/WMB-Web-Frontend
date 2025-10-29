@@ -109,7 +109,10 @@ export const Menus: React.FC = () => {
     {
       key: 'company',
       title: 'Şirket',
-      render: (_value: any, menu: Menu) => typeof menu.company === 'string' ? menu.company : menu.company.name
+      render: (_value: any, menu: Menu) => {
+        if (!menu.company) return '-';
+        return typeof menu.company === 'string' ? menu.company : menu.company.name;
+      }
     },
     {
       key: 'isActive',
@@ -247,17 +250,6 @@ export const Menus: React.FC = () => {
                   label="Açıklama"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-                <Select
-                  label="Şirket"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  options={companies.map(company => ({
-                    value: company._id,
-                    label: company.name
-                  }))}
-                  placeholder="Şirket Seçin"
-                  required
                 />
                 <div className="flex justify-end space-x-3">
                   <Button

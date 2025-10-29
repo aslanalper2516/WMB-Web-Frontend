@@ -265,7 +265,7 @@ export const MenuDetail: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">{menu.name}</h1>
           <p className="text-gray-600">{menu.description}</p>
           <p className="text-sm text-gray-500">
-            Şirket: {typeof menu.company === 'string' ? menu.company : menu.company.name}
+            Şirket: {menu.company ? (typeof menu.company === 'string' ? menu.company : menu.company.name) : '-'}
           </p>
         </div>
         <Button onClick={() => navigate('/menus')} variant="outline">
@@ -336,7 +336,7 @@ export const MenuDetail: React.FC = () => {
                     options={hierarchicalCategories.map(mc => {
                       const depth = mc.depth || 0;
                       const prefix = depth > 0 ? '  '.repeat(depth) + '└─ ' : '';
-                      const label = typeof mc.category === 'string' ? mc.category : mc.category.name;
+                      const label = mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category.name) : '-';
                       return {
                         value: mc._id,
                         label: prefix + label
@@ -388,6 +388,7 @@ export const MenuDetail: React.FC = () => {
                     render: (_value: any, mc: any) => {
                       const depth = mc.depth || 0;
                       const indent = depth * 24; // Her seviye için 24px girinti
+                      const categoryName = mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category.name) : '-';
                       
                       return (
                         <div className="flex items-center" style={{ paddingLeft: `${indent}px` }}>
@@ -397,7 +398,7 @@ export const MenuDetail: React.FC = () => {
                             </span>
                           )}
                           <span className={depth > 0 ? 'text-gray-600' : 'font-medium'}>
-                            {mc.category.name}
+                            {categoryName}
                           </span>
                         </div>
                       );
@@ -423,7 +424,21 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'isActive',
                     title: 'Durum',
-                    render: (_value: any, mc: any) => mc.isActive ? 'Aktif' : 'Pasif'
+                    render: (_value: any, mc: any) => {
+                      // Kategori objesinin isActive durumunu göster
+                      const categoryActive = mc.category && typeof mc.category !== 'string' 
+                        ? mc.category.isActive 
+                        : true;
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          categoryActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {categoryActive ? 'Aktif' : 'Pasif'}
+                        </span>
+                      );
+                    }
                   },
                   {
                     key: 'actions',
@@ -480,8 +495,8 @@ export const MenuDetail: React.FC = () => {
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
                     options={menuCategories.map(mc => ({
-                      value: typeof mc.category === 'string' ? mc.category : mc.category._id,
-                      label: typeof mc.category === 'string' ? mc.category : mc.category.name
+                      value: mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category._id) : '',
+                      label: mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category.name) : '-'
                     }))}
                     placeholder="Kategori Seçin"
                     required
@@ -547,8 +562,8 @@ export const MenuDetail: React.FC = () => {
                         value={selectedProduct}
                         onChange={(e) => setSelectedProduct(e.target.value)}
                         options={menuProducts.map(mp => ({
-                          value: typeof mp.product === 'string' ? mp.product : mp.product._id,
-                          label: typeof mp.product === 'string' ? mp.product : mp.product.name
+                          value: mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : '',
+                          label: mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product.name) : '-'
                         }))}
                         placeholder="Ürün Seçin"
                         required
@@ -629,23 +644,30 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'category',
                     title: 'Kategori',
-                    render: (_value: any, mp: any) => (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        {mp.category.name}
-                      </span>
-                    )
+                    render: (_value: any, mp: any) => {
+                      const categoryName = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category.name) : '-';
+                      return (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                          {categoryName}
+                        </span>
+                      );
+                    }
                   },
                   {
                     key: 'product',
                     title: 'Ürün',
-                    render: (_value: any, mp: any) => (
-                      <div>
-                        <div className="font-medium text-gray-900">{mp.product.name}</div>
-                        {mp.product.description && (
-                          <div className="text-sm text-gray-500">{mp.product.description}</div>
-                        )}
-                      </div>
-                    )
+                    render: (_value: any, mp: any) => {
+                      const productName = mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product.name) : '-';
+                      const productDescription = mp.product && typeof mp.product !== 'string' ? mp.product.description : null;
+                      return (
+                        <div>
+                          <div className="font-medium text-gray-900">{productName}</div>
+                          {productDescription && (
+                            <div className="text-sm text-gray-500">{productDescription}</div>
+                          )}
+                        </div>
+                      );
+                    }
                   },
                   {
                     key: 'order',
@@ -659,47 +681,65 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'isActive',
                     title: 'Durum',
-                    render: (_value: any, mp: any) => (
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        mp.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {mp.isActive ? 'Aktif' : 'Pasif'}
-                      </span>
-                    )
+                    render: (_value: any, mp: any) => {
+                      // Ürün objesinin isActive durumunu göster
+                      const productActive = mp.product && typeof mp.product !== 'string' 
+                        ? mp.product.isActive 
+                        : true;
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          productActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {productActive ? 'Aktif' : 'Pasif'}
+                        </span>
+                      );
+                    }
                   },
                   {
                     key: 'actions',
                     title: 'İşlemler',
-                    render: (_value: any, mp: any) => (
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedProduct(mp.product._id);
-                            setShowAssignKitchen(true);
-                          }}
-                          title="Mutfak Ata"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => removeProductMutation.mutate({ 
-                            menuId: id!, 
-                            categoryId: mp.category._id, 
-                            productId: mp.product._id 
-                          })}
-                          disabled={removeProductMutation.isPending}
-                          title="Ürünü Çıkar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )
+                    render: (_value: any, mp: any) => {
+                      const productId = mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : null;
+                      const categoryId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : null;
+                      
+                      return (
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (productId) {
+                                setSelectedProduct(productId);
+                                setShowAssignKitchen(true);
+                              }
+                            }}
+                            disabled={!productId}
+                            title="Mutfak Ata"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => {
+                              if (productId && categoryId) {
+                                removeProductMutation.mutate({ 
+                                  menuId: id!, 
+                                  categoryId, 
+                                  productId 
+                                });
+                              }
+                            }}
+                            disabled={removeProductMutation.isPending || !productId || !categoryId}
+                            title="Ürünü Çıkar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    }
                   }
                 ]}
               />
@@ -717,7 +757,7 @@ export const MenuDetail: React.FC = () => {
               onClick={() => setShowAssignBranch(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Şube Ata
+              Şubeye Ata
             </Button>
           </div>
 
@@ -725,7 +765,7 @@ export const MenuDetail: React.FC = () => {
           {showAssignBranch && (
             <Card>
               <CardContent className="p-4">
-                <h3 className="text-lg font-medium mb-4">Şube Ata</h3>
+                <h3 className="text-lg font-medium mb-4">Şubeye Menü Ata</h3>
                 <form onSubmit={handleAssignBranch} className="space-y-4">
                   <Select
                     label="Şube"
@@ -735,7 +775,7 @@ export const MenuDetail: React.FC = () => {
                       value: branch._id,
                       label: branch.name
                     }))}
-                    placeholder="Şube Seçin"
+                    placeholder="Menü Atanacak Şube Seçin"
                     required
                   />
                   <div className="flex justify-end space-x-3">
@@ -767,7 +807,9 @@ export const MenuDetail: React.FC = () => {
                   {
                     key: 'branch',
                     title: 'Şube',
-                    render: (_value: any, mb: any) => mb.branch.name
+                    render: (_value: any, mb: any) => {
+                      return mb.branch ? (typeof mb.branch === 'string' ? mb.branch : mb.branch.name) : '-';
+                    }
                   },
                   {
                     key: 'isActive',

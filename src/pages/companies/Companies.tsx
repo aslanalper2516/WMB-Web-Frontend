@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyBranchApi } from '../../api/companyBranch';
 import { authApi } from '../../api/auth';
-import { turkiyeApi, type Province, type District, type Neighborhood } from '../../api/turkiyeApi';
+import { turkiyeApi, type Province, type District, type Neighborhood } from '../../api/turkiyeApi.ts';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';

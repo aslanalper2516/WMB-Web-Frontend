@@ -15,6 +15,7 @@ export const SalesMethods: React.FC = () => {
   const [formData, setFormData] = useState<CreateSalesMethodRequest>({
     name: '',
     description: '',
+    parent: undefined,
   });
 
   const queryClient = useQueryClient();
@@ -29,7 +30,7 @@ export const SalesMethods: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
       setIsCreateModalOpen(false);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', parent: undefined });
     },
   });
 
@@ -40,7 +41,7 @@ export const SalesMethods: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
       setIsEditModalOpen(false);
       setSelectedMethod(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', parent: undefined });
     },
   });
 
@@ -71,18 +72,86 @@ export const SalesMethods: React.FC = () => {
 
   const handleEdit = (method: SalesMethod) => {
     setSelectedMethod(method);
+    const parentId = typeof method.parent === 'string' ? method.parent : method.parent?._id;
     setFormData({
       name: method.name,
       description: method.description || '',
+      parent: parentId || undefined,
     });
     setIsEditModalOpen(true);
   };
+
+  // Hiyerarşik sıralama fonksiyonu
+  const sortSalesMethodsHierarchically = (methods: SalesMethod[]) => {
+    const sorted: any[] = [];
+    const methodMap = new Map(methods.map(method => [method._id, { ...method, depth: 0 }]));
+    
+    // Her method'un depth'ini hesapla
+    const calculateDepth = (methodId: string, visited = new Set<string>()): number => {
+      if (visited.has(methodId)) return 0;
+      visited.add(methodId);
+      const method = methodMap.get(methodId);
+      if (!method) return 0;
+      const parentId = typeof method.parent === 'string' ? method.parent : method.parent?._id;
+      if (!parentId) return 0;
+      return 1 + calculateDepth(parentId, visited);
+    };
+    
+    methods.forEach(method => {
+      const depth = calculateDepth(method._id);
+      methodMap.set(method._id, { ...method, depth });
+    });
+    
+    // Recursive olarak parent ve child'ları sırala
+    const addMethodAndChildren = (parentId: string | null, currentDepth: number = 0) => {
+      const children = Array.from(methodMap.values()).filter(method => {
+        const methodParentId = typeof method.parent === 'string' ? method.parent : method.parent?._id;
+        return (parentId === null && !methodParentId) || methodParentId === parentId;
+      });
+      
+      children.forEach(method => {
+        sorted.push({ ...method, depth: currentDepth });
+        addMethodAndChildren(method._id, currentDepth + 1);
+      });
+    };
+    
+    addMethodAndChildren(null);
+    return sorted;
+  };
+
+  const salesMethods = salesMethodsData?.methods || [];
+  const hierarchicalSalesMethods = sortSalesMethodsHierarchically(salesMethods);
 
   const columns = [
     {
       key: 'name',
       title: 'Yöntem',
-      render: (_value: any, item: SalesMethod) => item.name,
+      render: (_value: any, item: any) => {
+        const depth = item.depth || 0;
+        const indent = depth * 24;
+        return (
+          <div className="flex items-center" style={{ paddingLeft: `${indent}px` }}>
+            {depth > 0 && (
+              <span className="text-gray-400 mr-2">
+                └─
+              </span>
+            )}
+            <span className={depth > 0 ? 'text-gray-600' : 'font-medium'}>
+              {item.name}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'parent',
+      title: 'Ana Yöntem',
+      render: (_value: any, item: any) => {
+        if (!item.parent) return '-';
+        const parentId = typeof item.parent === 'string' ? item.parent : item.parent._id;
+        const parentMethod = salesMethods.find(m => m._id === parentId);
+        return parentMethod?.name || '-';
+      },
     },
     {
       key: 'description',
@@ -138,7 +207,7 @@ export const SalesMethods: React.FC = () => {
       <Card>
         <CardContent className="p-0">
           <Table
-            data={salesMethodsData?.methods || []}
+            data={hierarchicalSalesMethods}
             columns={columns}
           />
         </CardContent>
@@ -159,6 +228,26 @@ export const SalesMethods: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Ana Satış Yöntemi (Opsiyonel)</label>
+                  <select
+                    value={formData.parent || ''}
+                    onChange={(e) => setFormData({ ...formData, parent: e.target.value || undefined })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Ana Yöntem Seçin</option>
+                    {hierarchicalSalesMethods.map((method: any) => {
+                      const depth = method.depth || 0;
+                      const indent = '  '.repeat(depth);
+                      const prefix = depth > 0 ? '└─ ' : '';
+                      return (
+                        <option key={method._id} value={method._id}>
+                          {indent}{prefix}{method.name}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Açıklama</label>
@@ -206,6 +295,29 @@ export const SalesMethods: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Ana Satış Yöntemi (Opsiyonel)</label>
+                  <select
+                    value={formData.parent || ''}
+                    onChange={(e) => setFormData({ ...formData, parent: e.target.value || undefined })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Ana Yöntem Seçin</option>
+                    {hierarchicalSalesMethods
+                      .filter((method: any) => method._id !== selectedMethod?._id)
+                      .map((method: any) => {
+                        const depth = method.depth || 0;
+                        const indent = '  '.repeat(depth);
+                        const prefix = depth > 0 ? '└─ ' : '';
+                        return (
+                          <option key={method._id} value={method._id}>
+                            {indent}{prefix}{method.name}
+                          </option>
+                        );
+                      })
+                    }
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Açıklama</label>
