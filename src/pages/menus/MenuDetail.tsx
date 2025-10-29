@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { menuApi } from '../../api/menu';
@@ -8,21 +8,26 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { Table } from '../../components/ui/Table';
-import { Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Eye } from 'lucide-react';
 
 export const MenuDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'categories' | 'products' | 'branches'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'products' | 'branches' | 'kitchens'>('categories');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAssignBranch, setShowAssignBranch] = useState(false);
-  const [showAssignKitchen, setShowAssignKitchen] = useState(false);
+  const [showAssignProductToKitchen, setShowAssignProductToKitchen] = useState(false);
+  const [showKitchenDetail, setShowKitchenDetail] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>('');
   const [selectedProduct, setSelectedProduct] = useState<string>('');
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedCategoryForKitchen, setSelectedCategoryForKitchen] = useState<string>('');
   const [selectedBranch, setSelectedBranch] = useState<string>('');
+  const [selectedBranchTab, setSelectedBranchTab] = useState<string>('');
   const [selectedKitchen, setSelectedKitchen] = useState<string>('');
+  const [isAssigningProducts, setIsAssigningProducts] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -60,10 +65,11 @@ export const MenuDetail: React.FC = () => {
     queryFn: () => categoryProductApi.getCategories(),
   });
 
-  // Tüm ürünleri getir
-  const { data: productsData } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => categoryProductApi.getProducts(),
+  // Eklenebilir ürünleri getir (seçilen kategoriye göre)
+  const { data: availableProductsData } = useQuery({
+    queryKey: ['available-products', id, selectedCategory],
+    queryFn: () => menuApi.getAvailableProducts(id!, selectedCategory),
+    enabled: !!id && !!selectedCategory,
   });
 
   // Tüm şubeleri getir
@@ -72,11 +78,18 @@ export const MenuDetail: React.FC = () => {
     queryFn: () => companyBranchApi.getBranches(),
   });
 
-  // Mutfakları getir (şube bazında)
+  // Mutfakları getir (seçili şubeye göre)
   const { data: kitchensData } = useQuery({
-    queryKey: ['kitchens', selectedBranch],
-    queryFn: () => companyBranchApi.getKitchens(selectedBranch),
-    enabled: !!selectedBranch,
+    queryKey: ['kitchens', selectedBranchTab],
+    queryFn: () => categoryProductApi.getKitchens(selectedBranchTab),
+    enabled: !!selectedBranchTab,
+  });
+
+  // Mutfak detayı için mutfağa atanmış ürünleri getir
+  const { data: kitchenProductsData } = useQuery({
+    queryKey: ['kitchen-products', selectedKitchen],
+    queryFn: () => menuApi.getKitchenProducts(selectedKitchen!),
+    enabled: !!selectedKitchen && showKitchenDetail,
   });
 
   // Mutasyonlar
@@ -136,18 +149,29 @@ export const MenuDetail: React.FC = () => {
     },
   });
 
-  const assignKitchenMutation = useMutation({
-    mutationFn: ({ productId, kitchenId, branchId }: { productId: string; kitchenId: string; branchId: string }) =>
-      menuApi.assignProductToKitchen(productId, kitchenId, branchId),
+  const deleteKitchenMutation = useMutation({
+    mutationFn: categoryProductApi.deleteKitchen,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-products', id] });
-      setShowAssignKitchen(false);
-      setSelectedProduct('');
-      setSelectedBranch('');
-      setSelectedKitchen('');
+      queryClient.invalidateQueries({ queryKey: ['kitchens'] });
     },
   });
 
+  const removeProductFromKitchenMutation = useMutation({
+    mutationFn: ({ productId, kitchenId, branchId }: { productId: string; kitchenId: string; branchId: string }) =>
+      menuApi.removeProductFromKitchen(productId, kitchenId, branchId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kitchen-products'] });
+    },
+  });
+
+  // İlk şubeyi otomatik seç
+  useEffect(() => {
+    if (activeTab === 'kitchens' && menuBranchesData?.menuBranches && menuBranchesData.menuBranches.length > 0 && !selectedBranchTab) {
+      const firstBranch = menuBranchesData.menuBranches[0];
+      const branchId = firstBranch.branch ? (typeof firstBranch.branch === 'string' ? firstBranch.branch : firstBranch.branch._id) : '';
+      setSelectedBranchTab(branchId);
+    }
+  }, [activeTab, menuBranchesData, selectedBranchTab]);
 
   // Event handlers
   const handleAddCategory = async (e: React.FormEvent) => {
@@ -155,8 +179,8 @@ export const MenuDetail: React.FC = () => {
     if (!selectedCategory) return;
     addCategoryMutation.mutate({ 
       menuId: id!, 
-      categoryId: selectedCategory,
-      parentId: selectedParentCategory || undefined
+      categoryId: selectedCategory, 
+      parentId: selectedParentCategory || undefined 
     });
   };
 
@@ -172,10 +196,34 @@ export const MenuDetail: React.FC = () => {
     assignBranchMutation.mutate({ menuId: id!, branchId: selectedBranch });
   };
 
-  const handleAssignKitchen = async (e: React.FormEvent) => {
+  const handleAssignProductToKitchen = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct || !selectedBranch || !selectedKitchen) return;
-    assignKitchenMutation.mutate({ productId: selectedProduct, kitchenId: selectedKitchen, branchId: selectedBranch });
+    if (selectedProducts.length === 0 || !selectedKitchen || !selectedBranch) return;
+    
+    setIsAssigningProducts(true);
+    
+    // Birden fazla ürünü sırayla ata
+    try {
+      await Promise.all(
+        selectedProducts.map(productId => 
+          menuApi.assignProductToKitchen(productId, selectedKitchen, selectedBranch)
+        )
+      );
+      
+      // Tüm atamalar başarılı olduğunda
+      queryClient.invalidateQueries({ queryKey: ['kitchen-products'] });
+      setShowAssignProductToKitchen(false);
+      setSelectedProduct('');
+      setSelectedProducts([]);
+      setSelectedCategoryForKitchen('');
+      setSelectedKitchen('');
+      setSelectedBranch('');
+    } catch (error) {
+      console.error('Ürün atama hatası:', error);
+      alert('Bazı ürünler atanırken hata oluştu.');
+    } finally {
+      setIsAssigningProducts(false);
+    }
   };
 
   if (menuLoading) {
@@ -191,9 +239,10 @@ export const MenuDetail: React.FC = () => {
   const menuProducts = menuProductsData?.menuProducts || [];
   const menuBranches = menuBranchesData?.menuBranches || [];
   const categories = categoriesData?.categories || [];
-  const products = productsData?.products || [];
+  const availableProducts = availableProductsData?.products || [];
   const branches = branchesData?.branches || [];
   const kitchens = kitchensData?.kitchens || [];
+  const kitchenProducts = kitchenProductsData?.products || [];
 
   // Kategorileri hiyerarşik olarak sırala
   const sortCategoriesHierarchically = (categories: any[]) => {
@@ -242,14 +291,39 @@ export const MenuDetail: React.FC = () => {
 
   const hierarchicalCategories = sortCategoriesHierarchically(menuCategories);
 
+  // Bir kategorinin tüm alt kategorilerini bul (recursive)
+  const getAllSubCategories = (categoryId: string): string[] => {
+    const subCategories: string[] = [categoryId];
+    
+    // Verilen category ID'ye sahip MenuCategory'yi bul
+    const parentMenuCategory = menuCategories.find(mc => {
+      const catId = mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category._id) : '';
+      return catId === categoryId;
+    });
+    
+    if (!parentMenuCategory) return subCategories;
+    
+    const findChildren = (parentMenuCategoryId: string) => {
+      menuCategories.forEach(mc => {
+        // mc.parent field'ı bir MenuCategory'ye işaret eder
+        const mcParentId = mc.parent ? (typeof mc.parent === 'string' ? mc.parent : mc.parent._id) : null;
+        const catId = mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category._id) : '';
+        
+        if (mcParentId === parentMenuCategoryId && catId && !subCategories.includes(catId)) {
+          subCategories.push(catId);
+          // Bu child MenuCategory'nin de child'larını bul
+          findChildren(mc._id);
+        }
+      });
+    };
+    
+    findChildren(parentMenuCategory._id);
+    return subCategories;
+  };
+
   // Menüde olmayan kategorileri filtrele
   const availableCategories = categories.filter(
     cat => !menuCategories.some(mc => (typeof mc.category === 'string' ? mc.category === cat._id : mc.category._id === cat._id))
-  );
-
-  // Menüde olmayan ürünleri filtrele
-  const availableProducts = products.filter(
-    prod => !menuProducts.some(mp => (typeof mp.product === 'string' ? mp.product === prod._id : mp.product._id === prod._id))
   );
 
   // Menüde olmayan şubeleri filtrele
@@ -306,6 +380,16 @@ export const MenuDetail: React.FC = () => {
             }`}
           >
             Şubeler ({menuBranches.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('kitchens')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'kitchens'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Mutfaklar
           </button>
         </nav>
       </div>
@@ -475,12 +559,6 @@ export const MenuDetail: React.FC = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Ürün Ekle
               </Button>
-              <Button
-                onClick={() => setShowAssignKitchen(true)}
-                variant="secondary"
-              >
-                Mutfak Ata
-              </Button>
             </div>
           </div>
 
@@ -493,25 +571,38 @@ export const MenuDetail: React.FC = () => {
                   <Select
                     label="Kategori"
                     value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setSelectedProduct(''); // Kategori değişince ürünü sıfırla
+                    }}
                     options={menuCategories.map(mc => ({
                       value: mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category._id) : '',
                       label: mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category.name) : '-'
                     }))}
-                    placeholder="Kategori Seçin"
+                    placeholder="Önce Kategori Seçin"
                     required
                   />
-                  <Select
-                    label="Ürün"
-                    value={selectedProduct}
-                    onChange={(e) => setSelectedProduct(e.target.value)}
-                    options={availableProducts.map(prod => ({
-                      value: prod._id,
-                      label: prod.name
-                    }))}
-                    placeholder="Ürün Seçin"
-                    required
-                  />
+                  
+                  {selectedCategory && availableProducts.length === 0 && (
+                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                      ℹ️ Bu kategoriye eklenebilecek ürün kalmadı.
+                    </div>
+                  )}
+                  
+                  {selectedCategory && availableProducts.length > 0 && (
+                    <Select
+                      label="Ürün"
+                      value={selectedProduct}
+                      onChange={(e) => setSelectedProduct(e.target.value)}
+                      options={availableProducts.map(prod => ({
+                        value: prod._id,
+                        label: prod.name
+                      }))}
+                      placeholder="Ürün Seçin"
+                      required
+                    />
+                  )}
+                  
                   <div className="flex justify-end space-x-3">
                     <Button
                       type="button"
@@ -524,110 +615,12 @@ export const MenuDetail: React.FC = () => {
                     >
                       İptal
                     </Button>
-                    <Button type="submit" loading={addProductMutation.isPending}>
-                      Ekle
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Mutfak Atama Formu */}
-          {showAssignKitchen && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium">Ürün-Mutfak Atama</h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowAssignKitchen(false);
-                      setSelectedProduct('');
-                      setSelectedBranch('');
-                      setSelectedKitchen('');
-                    }}
-                  >
-                    ✕
-                  </Button>
-                </div>
-                
-                <form onSubmit={handleAssignKitchen} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Select
-                        label="Ürün"
-                        value={selectedProduct}
-                        onChange={(e) => setSelectedProduct(e.target.value)}
-                        options={menuProducts.map(mp => ({
-                          value: mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : '',
-                          label: mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product.name) : '-'
-                        }))}
-                        placeholder="Ürün Seçin"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Select
-                        label="Şube"
-                        value={selectedBranch}
-                        onChange={(e) => {
-                          setSelectedBranch(e.target.value);
-                          setSelectedKitchen('');
-                        }}
-                        options={menuBranches.map(mb => ({
-                          value: typeof mb.branch === 'string' ? mb.branch : mb.branch._id,
-                          label: typeof mb.branch === 'string' ? mb.branch : mb.branch.name
-                        }))}
-                        placeholder="Şube Seçin"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Select
-                        label="Mutfak"
-                        value={selectedKitchen}
-                        onChange={(e) => setSelectedKitchen(e.target.value)}
-                        options={kitchens.map(kitchen => ({
-                          value: kitchen._id,
-                          label: kitchen.name
-                        }))}
-                        placeholder="Mutfak Seçin"
-                        required
-                        disabled={!selectedBranch}
-                      />
-                    </div>
-                  </div>
-                  
-                  {selectedBranch && kitchens.length === 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                      <p className="text-sm text-yellow-800">
-                        Bu şubede henüz mutfak bulunmuyor. Önce mutfak oluşturun.
-                      </p>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-end space-x-3 pt-4 border-t">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowAssignKitchen(false);
-                        setSelectedProduct('');
-                        setSelectedBranch('');
-                        setSelectedKitchen('');
-                      }}
-                    >
-                      İptal
-                    </Button>
                     <Button 
                       type="submit" 
-                      loading={assignKitchenMutation.isPending}
-                      disabled={!selectedProduct || !selectedBranch || !selectedKitchen}
+                      loading={addProductMutation.isPending}
+                      disabled={!selectedCategory || !selectedProduct}
                     >
-                      Mutfak Ata
+                      Ekle
                     </Button>
                   </div>
                 </form>
@@ -705,39 +698,23 @@ export const MenuDetail: React.FC = () => {
                       const categoryId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : null;
                       
                       return (
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              if (productId) {
-                                setSelectedProduct(productId);
-                                setShowAssignKitchen(true);
-                              }
-                            }}
-                            disabled={!productId}
-                            title="Mutfak Ata"
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => {
-                              if (productId && categoryId) {
-                                removeProductMutation.mutate({ 
-                                  menuId: id!, 
-                                  categoryId, 
-                                  productId 
-                                });
-                              }
-                            }}
-                            disabled={removeProductMutation.isPending || !productId || !categoryId}
-                            title="Ürünü Çıkar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => {
+                            if (productId && categoryId) {
+                              removeProductMutation.mutate({ 
+                                menuId: id!, 
+                                categoryId, 
+                                productId 
+                              });
+                            }
+                          }}
+                          disabled={removeProductMutation.isPending || !productId || !categoryId}
+                          title="Ürünü Çıkar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       );
                     }
                   }
@@ -836,6 +813,321 @@ export const MenuDetail: React.FC = () => {
               />
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Mutfaklar Tab */}
+      {activeTab === 'kitchens' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Mutfak Yönetimi</h2>
+          </div>
+
+          {/* Ürün-Mutfak Atama Formu Modal */}
+          {showAssignProductToKitchen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <h3 className="text-lg font-medium mb-4">Ürün Ekle: {kitchens.find(k => k._id === selectedKitchen)?.name}</h3>
+                  <form onSubmit={handleAssignProductToKitchen} className="space-y-4">
+                    {/* Kategori Seçimi */}
+                    <div>
+                      <Select
+                        label="Kategori Seç (Opsiyonel)"
+                        value={selectedCategoryForKitchen}
+                        onChange={(e) => {
+                          setSelectedCategoryForKitchen(e.target.value);
+                          // Kategori değiştiğinde seçili ürünleri temizle
+                          setSelectedProducts([]);
+                        }}
+                        options={[
+                          { value: '', label: 'Tüm Ürünler' },
+                          ...menuCategories.map(mc => {
+                            const catId = mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category._id) : '';
+                            const catName = mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category.name) : '-';
+                            return {
+                              value: catId,
+                              label: catName
+                            };
+                          })
+                        ]}
+                      />
+                      {selectedCategoryForKitchen && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => {
+                            // Seçili kategoriye ve tüm alt kategorilerine ait ürünleri seç
+                            const allSubCategoryIds = getAllSubCategories(selectedCategoryForKitchen);
+                            const categoryProducts = menuProducts
+                              .filter(mp => {
+                                const catId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : '';
+                                return allSubCategoryIds.includes(catId);
+                              })
+                              .map(mp => mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : '')
+                              .filter(id => id !== '');
+                            setSelectedProducts(categoryProducts);
+                          }}
+                        >
+                          Bu Kategorideki Tüm Ürünleri Seç ({menuProducts.filter(mp => {
+                            const catId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : '';
+                            const allSubCategoryIds = getAllSubCategories(selectedCategoryForKitchen);
+                            return allSubCategoryIds.includes(catId);
+                          }).length} ürün)
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Ürün Seçimi - Multi Select */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ürünler ({selectedProducts.length} seçili)
+                      </label>
+                      <div className="border rounded-lg max-h-96 overflow-y-auto">
+                        {(selectedCategoryForKitchen 
+                          ? menuProducts.filter(mp => {
+                              const catId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : '';
+                              const allSubCategoryIds = getAllSubCategories(selectedCategoryForKitchen);
+                              return allSubCategoryIds.includes(catId);
+                            })
+                          : menuProducts
+                        ).map((mp) => {
+                          const productId = mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : '';
+                          const productName = mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product.name) : '-';
+                          const categoryName = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category.name) : '-';
+                          
+                          return (
+                            <div
+                              key={productId}
+                              className="flex items-center space-x-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
+                            >
+                              <input
+                                type="checkbox"
+                                id={`product-${productId}`}
+                                checked={selectedProducts.includes(productId)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedProducts([...selectedProducts, productId]);
+                                  } else {
+                                    setSelectedProducts(selectedProducts.filter(id => id !== productId));
+                                  }
+                                }}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <label htmlFor={`product-${productId}`} className="flex-1 cursor-pointer">
+                                <div className="text-sm font-medium text-gray-900">{productName}</div>
+                                <div className="text-xs text-gray-500">Kategori: {categoryName}</div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-4">
+                      <div className="text-sm text-gray-600">
+                        {selectedProducts.length > 0 && (
+                          <span className="font-medium">{selectedProducts.length} ürün eklenecek</span>
+                        )}
+                      </div>
+                      <div className="flex space-x-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowAssignProductToKitchen(false);
+                            setSelectedProduct('');
+                            setSelectedProducts([]);
+                            setSelectedCategoryForKitchen('');
+                            setSelectedKitchen('');
+                          }}
+                        >
+                          İptal
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          loading={isAssigningProducts}
+                          disabled={selectedProducts.length === 0}
+                        >
+                          Ürünleri Ekle
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mutfak Detay Modal */}
+          {showKitchenDetail && selectedKitchen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Mutfak: {kitchens.find(k => k._id === selectedKitchen)?.name}</h3>
+                    <button
+                      onClick={() => {
+                        setShowKitchenDetail(false);
+                        setSelectedKitchen('');
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <h4 className="text-md font-medium mb-3">Atanmış Ürünler</h4>
+                  {kitchenProducts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Bu mutfakta henüz ürün bulunmuyor.
+                    </div>
+                  ) : (
+                    <Table
+                      data={kitchenProducts}
+                      columns={[
+                        {
+                          key: 'product',
+                          title: 'Ürün',
+                          render: (_value: any, item: any) => {
+                            return item.product ? (typeof item.product === 'string' ? item.product : item.product.name) : '-';
+                          }
+                        },
+                        {
+                          key: 'actions',
+                          title: 'İşlemler',
+                          render: (_value: any, item: any) => {
+                            const productId = item.product ? (typeof item.product === 'string' ? item.product : item.product._id) : null;
+                            return (
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => {
+                                  if (productId && selectedKitchen && selectedBranchTab) {
+                                    if (window.confirm('Bu ürünü mutfaktan kaldırmak istediğinizden emin misiniz?')) {
+                                      removeProductFromKitchenMutation.mutate({ 
+                                        productId, 
+                                        kitchenId: selectedKitchen, 
+                                        branchId: selectedBranchTab 
+                                      });
+                                    }
+                                  }
+                                }}
+                                disabled={removeProductFromKitchenMutation.isPending || !productId}
+                                title="Ürünü Kaldır"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            );
+                          }
+                        }
+                      ]}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Şubeler ve Mutfaklar */}
+          {menuBranches.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-gray-500">
+                Bu menüde henüz şube bulunmuyor. Önce "Şubeler" sekmesinden şube ekleyin.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Şube Tabları */}
+              <div className="border-b border-gray-200">
+                <div className="flex space-x-8 overflow-x-auto">
+                  {menuBranches.map((mb) => {
+                    const branchId = mb.branch ? (typeof mb.branch === 'string' ? mb.branch : mb.branch._id) : '';
+                    const branchName = mb.branch ? (typeof mb.branch === 'string' ? mb.branch : mb.branch.name) : '-';
+                    return (
+                      <button
+                        key={branchId}
+                        onClick={() => setSelectedBranchTab(branchId)}
+                        className={`py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap ${
+                          selectedBranchTab === branchId
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        {branchName}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Mutfak Kartları */}
+              <div className="mt-6">
+                {kitchens.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-8 text-center text-gray-500">
+                      Bu şubede henüz mutfak bulunmuyor.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {kitchens.map((kitchen) => (
+                      <div
+                        key={kitchen._id}
+                        className="group relative border rounded-lg p-6 hover:shadow-lg transition-shadow bg-white"
+                      >
+                        <h3 className="text-lg font-semibold mb-2">{kitchen.name}</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Şube: {kitchen.branch ? (typeof kitchen.branch === 'string' ? kitchen.branch : kitchen.branch.name) : '-'}
+                        </p>
+                        
+                        {/* Hover Butonları */}
+                        <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              setSelectedKitchen(kitchen._id);
+                              setShowKitchenDetail(true);
+                            }}
+                            title="Mutfağı Görüntüle"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedKitchen(kitchen._id);
+                              setSelectedBranch(selectedBranchTab);
+                              setShowAssignProductToKitchen(true);
+                            }}
+                            title="Ürün Ekle"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => {
+                              if (window.confirm(`${kitchen.name} mutfağını silmek istediğinizden emin misiniz?`)) {
+                                deleteKitchenMutation.mutate(kitchen._id);
+                              }
+                            }}
+                            disabled={deleteKitchenMutation.isPending}
+                            title="Mutfağı Sil"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
