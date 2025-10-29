@@ -265,7 +265,10 @@ export const Units: React.FC = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsCreateModalOpen(false)}
+                    onClick={() => {
+                      setIsCreateModalOpen(false);
+                      setFormData({ name: '' });
+                    }}
                   >
                     İptal
                   </Button>
@@ -306,7 +309,11 @@ export const Units: React.FC = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsEditModalOpen(false)}
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setSelectedUnit(null);
+                      setFormData({ name: '' });
+                    }}
                   >
                     İptal
                   </Button>

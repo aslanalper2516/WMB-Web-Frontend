@@ -21,13 +21,14 @@ export const MenuDetail: React.FC = () => {
   const [showKitchenDetail, setShowKitchenDetail] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>('');
-  const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedProductsForCategory, setSelectedProductsForCategory] = useState<string[]>([]);
   const [selectedCategoryForKitchen, setSelectedCategoryForKitchen] = useState<string>('');
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [selectedBranchTab, setSelectedBranchTab] = useState<string>('');
   const [selectedKitchen, setSelectedKitchen] = useState<string>('');
   const [isAssigningProducts, setIsAssigningProducts] = useState(false);
+  const [isAddingProducts, setIsAddingProducts] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -112,17 +113,6 @@ export const MenuDetail: React.FC = () => {
     },
   });
 
-  const addProductMutation = useMutation({
-    mutationFn: ({ menuId, categoryId, productId }: { menuId: string; categoryId: string; productId: string }) =>
-      menuApi.addProductToMenuCategory(menuId, categoryId, productId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-products', id] });
-      setShowAddProduct(false);
-      setSelectedCategory('');
-      setSelectedProduct('');
-    },
-  });
-
   const removeProductMutation = useMutation({
     mutationFn: ({ menuId, categoryId, productId }: { menuId: string; categoryId: string; productId: string }) =>
       menuApi.removeProductFromMenuCategory(menuId, categoryId, productId),
@@ -186,8 +176,30 @@ export const MenuDetail: React.FC = () => {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCategory || !selectedProduct) return;
-    addProductMutation.mutate({ menuId: id!, categoryId: selectedCategory, productId: selectedProduct });
+    if (!selectedCategory || selectedProductsForCategory.length === 0) return;
+    
+    setIsAddingProducts(true);
+    
+    try {
+      // Birden fazla ürünü sırayla ekle
+      await Promise.all(
+        selectedProductsForCategory.map(productId => 
+          menuApi.addProductToMenuCategory(id!, selectedCategory, productId)
+        )
+      );
+      
+      // Tüm eklemeler başarılı olduğunda
+      queryClient.invalidateQueries({ queryKey: ['menu-products', id] });
+      queryClient.invalidateQueries({ queryKey: ['available-products', id, selectedCategory] });
+      setShowAddProduct(false);
+      setSelectedCategory('');
+      setSelectedProductsForCategory([]);
+    } catch (error) {
+      console.error('Ürün ekleme hatası:', error);
+      alert('Bazı ürünler eklenirken hata oluştu.');
+    } finally {
+      setIsAddingProducts(false);
+    }
   };
 
   const handleAssignBranch = async (e: React.FormEvent) => {
@@ -213,7 +225,6 @@ export const MenuDetail: React.FC = () => {
       // Tüm atamalar başarılı olduğunda
       queryClient.invalidateQueries({ queryKey: ['kitchen-products'] });
       setShowAssignProductToKitchen(false);
-      setSelectedProduct('');
       setSelectedProducts([]);
       setSelectedCategoryForKitchen('');
       setSelectedKitchen('');
@@ -573,7 +584,7 @@ export const MenuDetail: React.FC = () => {
                     value={selectedCategory}
                     onChange={(e) => {
                       setSelectedCategory(e.target.value);
-                      setSelectedProduct(''); // Kategori değişince ürünü sıfırla
+                      setSelectedProductsForCategory([]); // Seçili ürünleri de temizle
                     }}
                     options={menuCategories.map(mc => ({
                       value: mc.category ? (typeof mc.category === 'string' ? mc.category : mc.category._id) : '',
@@ -590,38 +601,81 @@ export const MenuDetail: React.FC = () => {
                   )}
                   
                   {selectedCategory && availableProducts.length > 0 && (
-                    <Select
-                      label="Ürün"
-                      value={selectedProduct}
-                      onChange={(e) => setSelectedProduct(e.target.value)}
-                      options={availableProducts.map(prod => ({
-                        value: prod._id,
-                        label: prod.name
-                      }))}
-                      placeholder="Ürün Seçin"
-                      required
-                    />
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Ürünler ({selectedProductsForCategory.length} seçili)
+                        </label>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            // Tüm ürünleri seç/temizle
+                            if (selectedProductsForCategory.length === availableProducts.length) {
+                              setSelectedProductsForCategory([]);
+                            } else {
+                              setSelectedProductsForCategory(availableProducts.map(p => p._id));
+                            }
+                          }}
+                        >
+                          {selectedProductsForCategory.length === availableProducts.length ? 'Hiçbirini Seçme' : 'Tümünü Seç'}
+                        </Button>
+                      </div>
+                      <div className="border rounded-lg max-h-64 overflow-y-auto">
+                        {availableProducts.map((product) => (
+                          <div
+                            key={product._id}
+                            className="flex items-center space-x-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
+                          >
+                            <input
+                              type="checkbox"
+                              id={`product-cat-${product._id}`}
+                              checked={selectedProductsForCategory.includes(product._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedProductsForCategory([...selectedProductsForCategory, product._id]);
+                                } else {
+                                  setSelectedProductsForCategory(selectedProductsForCategory.filter(id => id !== product._id));
+                                }
+                              }}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor={`product-cat-${product._id}`} className="flex-1 cursor-pointer">
+                              <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   
-                  <div className="flex justify-end space-x-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowAddProduct(false);
-                        setSelectedCategory('');
-                        setSelectedProduct('');
-                      }}
-                    >
-                      İptal
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      loading={addProductMutation.isPending}
-                      disabled={!selectedCategory || !selectedProduct}
-                    >
-                      Ekle
-                    </Button>
+                  <div className="flex justify-between items-center pt-4">
+                    <div className="text-sm text-gray-600">
+                      {selectedProductsForCategory.length > 0 && (
+                        <span className="font-medium">{selectedProductsForCategory.length} ürün eklenecek</span>
+                      )}
+                    </div>
+                    <div className="flex space-x-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setShowAddProduct(false);
+                          setSelectedCategory('');
+                          setSelectedProductsForCategory([]);
+                        }}
+                      >
+                        İptal
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        loading={isAddingProducts}
+                        disabled={!selectedCategory || selectedProductsForCategory.length === 0}
+                      >
+                        Ürünleri Ekle
+                      </Button>
+                    </div>
                   </div>
                 </form>
               </CardContent>
@@ -882,9 +936,52 @@ export const MenuDetail: React.FC = () => {
 
                     {/* Ürün Seçimi - Multi Select */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Ürünler ({selectedProducts.length} seçili)
-                      </label>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Ürünler ({selectedProducts.length} seçili)
+                        </label>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            // Görünen tüm ürünleri al
+                            const visibleProducts = (selectedCategoryForKitchen 
+                              ? menuProducts.filter(mp => {
+                                  const catId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : '';
+                                  const allSubCategoryIds = getAllSubCategories(selectedCategoryForKitchen);
+                                  return allSubCategoryIds.includes(catId);
+                                })
+                              : menuProducts
+                            );
+                            const visibleProductIds = visibleProducts
+                              .map(mp => mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : '')
+                              .filter(id => id !== '');
+                            
+                            // Tümü seçili mi kontrol et
+                            if (selectedProducts.length === visibleProductIds.length) {
+                              setSelectedProducts([]);
+                            } else {
+                              setSelectedProducts(visibleProductIds);
+                            }
+                          }}
+                        >
+                          {(() => {
+                            const visibleProducts = (selectedCategoryForKitchen 
+                              ? menuProducts.filter(mp => {
+                                  const catId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : '';
+                                  const allSubCategoryIds = getAllSubCategories(selectedCategoryForKitchen);
+                                  return allSubCategoryIds.includes(catId);
+                                })
+                              : menuProducts
+                            );
+                            const visibleProductIds = visibleProducts
+                              .map(mp => mp.product ? (typeof mp.product === 'string' ? mp.product : mp.product._id) : '')
+                              .filter(id => id !== '');
+                            return selectedProducts.length === visibleProductIds.length ? 'Hiçbirini Seçme' : 'Tümünü Seç';
+                          })()}
+                        </Button>
+                      </div>
                       <div className="border rounded-lg max-h-96 overflow-y-auto">
                         {(selectedCategoryForKitchen 
                           ? menuProducts.filter(mp => {
@@ -938,7 +1035,6 @@ export const MenuDetail: React.FC = () => {
                           variant="outline"
                           onClick={() => {
                             setShowAssignProductToKitchen(false);
-                            setSelectedProduct('');
                             setSelectedProducts([]);
                             setSelectedCategoryForKitchen('');
                             setSelectedKitchen('');
