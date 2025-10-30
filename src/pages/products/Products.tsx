@@ -134,7 +134,7 @@ export const Products: React.FC = () => {
   };
 
   const handleSavePrice = async () => {
-    if (!selectedProduct || !editingSalesMethodId || editingPrice <= 0) return;
+    if (!selectedProduct || !editingSalesMethodId || editingPrice <= 0 || !editingCurrencyUnitId) return;
     try {
       if (editingPriceId) {
         // Backend update şeması tutarsız; güvenli yol: mevcut kaydı sil ve yeniden oluştur
@@ -143,7 +143,7 @@ export const Products: React.FC = () => {
       await categoryProductApi.createProductPrice(selectedProduct._id, {
         salesMethod: editingSalesMethodId,
         price: editingPrice,
-        currencyUnit: editingCurrencyUnitId || undefined,
+        currencyUnit: editingCurrencyUnitId,
       });
       // Yeniden yükle
       const pricesRes = await categoryProductApi.getProductPrices(selectedProduct._id);
@@ -458,6 +458,7 @@ export const Products: React.FC = () => {
                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         value={editingCurrencyUnitId}
                         onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
+                        required
                       >
                         {currencyUnits.map((u) => (
                           <option key={u._id} value={u._id}>{u.name}</option>
@@ -466,7 +467,7 @@ export const Products: React.FC = () => {
                     </div>
                     <div className="flex items-end justify-end space-x-3">
                       <Button variant="outline" onClick={() => { setEditingSalesMethodId(''); setEditingPriceId(''); }}>İptal</Button>
-                      <Button onClick={handleSavePrice} disabled={editingPrice <= 0}>Kaydet</Button>
+                      <Button onClick={handleSavePrice} disabled={editingPrice <= 0 || !editingCurrencyUnitId}>Kaydet</Button>
                     </div>
                   </div>
                 )}

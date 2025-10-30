@@ -83,7 +83,7 @@ export const categoryProductApi = {
 
   createProductPrice: async (
     productId: string,
-    data: { salesMethod: string; price: number; currencyUnit?: string; branch?: string; company?: string }
+    data: { salesMethod: string; price: number; currencyUnit: string; branch?: string; company?: string }
   ): Promise<{ message: string; price: ProductPrice }> => {
     return apiClient.post<{ message: string; price: ProductPrice }>(`/category-product/products/${productId}/prices`, data);
   },

@@ -256,7 +256,7 @@ export interface CreateSalesMethodRequest {
 export interface CreateProductPriceRequest {
   salesMethod: string;
   price: number;
-  currencyUnit?: string;
+  currencyUnit: string;
   branch?: string;
   company?: string;
 }
