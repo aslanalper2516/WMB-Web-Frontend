@@ -153,7 +153,10 @@ export const Kitchens: React.FC = () => {
             Mutfak bilgilerini yönetin
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
+        <Button onClick={() => {
+          setFormData({ name: '', company: '', branch: '' });
+          setIsCreateModalOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Yeni Mutfak
         </Button>
@@ -187,7 +190,7 @@ export const Kitchens: React.FC = () => {
                   <select
                     name="company"
                     value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value, branch: '' })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
@@ -207,20 +210,30 @@ export const Kitchens: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
+                    disabled={!formData.company}
                   >
                     <option value="">Şube Seçin</option>
-                    {branchesData?.branches.map((branch) => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </option>
-                    ))}
+                    {branchesData?.branches
+                      .filter((branch) => {
+                        const branchCompanyId = typeof branch.company === 'string' ? branch.company : branch.company._id;
+                        return branchCompanyId === formData.company;
+                      })
+                      .map((branch) => (
+                        <option key={branch._id} value={branch._id}>
+                          {branch.name}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsCreateModalOpen(false)}
+                    onClick={() => {
+                      setIsCreateModalOpen(false);
+                      setFormData({ name: '', company: '', branch: '' });
+                    }}
                   >
                     İptal
                   </Button>
@@ -256,7 +269,7 @@ export const Kitchens: React.FC = () => {
                   <select
                     name="company"
                     value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value, branch: '' })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
@@ -276,20 +289,31 @@ export const Kitchens: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
+                    disabled={!formData.company}
                   >
                     <option value="">Şube Seçin</option>
-                    {branchesData?.branches.map((branch) => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name}
-                      </option>
-                    ))}
+                    {branchesData?.branches
+                      .filter((branch) => {
+                        const branchCompanyId = typeof branch.company === 'string' ? branch.company : branch.company._id;
+                        return branchCompanyId === formData.company;
+                      })
+                      .map((branch) => (
+                        <option key={branch._id} value={branch._id}>
+                          {branch.name}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsEditModalOpen(false)}
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setSelectedKitchen(null);
+                      setFormData({ name: '', company: '', branch: '' });
+                    }}
                   >
                     İptal
                   </Button>

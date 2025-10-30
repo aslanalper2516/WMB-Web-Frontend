@@ -5,7 +5,6 @@ import type {
   Product, 
   CreateProductRequest, 
   Kitchen, 
-  CreateKitchenRequest,
   ProductIngredient,
   CreateProductIngredientRequest,
   ProductPrice,
@@ -57,27 +56,6 @@ export const categoryProductApi = {
 
   deleteProduct: async (id: string): Promise<{ message: string }> => {
     return apiClient.delete<{ message: string }>(`/category-product/products/${id}`);
-  },
-
-  // Kitchens
-  getKitchens: async (): Promise<{ message: string; kitchens: Kitchen[] }> => {
-    return apiClient.get<{ message: string; kitchens: Kitchen[] }>('/category-product/kitchens');
-  },
-
-  getKitchenById: async (id: string): Promise<{ message: string; kitchen: Kitchen }> => {
-    return apiClient.get<{ message: string; kitchen: Kitchen }>(`/category-product/kitchens/${id}`);
-  },
-
-  createKitchen: async (data: CreateKitchenRequest): Promise<{ message: string; kitchen: Kitchen }> => {
-    return apiClient.post<{ message: string; kitchen: Kitchen }>('/category-product/kitchens', data);
-  },
-
-  updateKitchen: async (id: string, data: Partial<CreateKitchenRequest>): Promise<{ message: string; kitchen: Kitchen }> => {
-    return apiClient.put<{ message: string; kitchen: Kitchen }>(`/category-product/kitchens/${id}`, data);
-  },
-
-  deleteKitchen: async (id: string): Promise<{ message: string }> => {
-    return apiClient.delete<{ message: string }>(`/category-product/kitchens/${id}`);
   },
 
   // Product Ingredients
@@ -155,5 +133,31 @@ export const categoryProductApi = {
   // Currency Units
   getCurrencyUnits: async (): Promise<{ message: string; units: CurrencyUnit[] }> => {
     return apiClient.get<{ message: string; units: CurrencyUnit[] }>('/category-product/currency-units');
+  },
+
+  // Kitchens
+  getKitchens: async (branchId?: string, companyId?: string): Promise<{ message: string; kitchens: Kitchen[] }> => {
+    let url = '/category-product/kitchens';
+    const params = [];
+    if (branchId) params.push(`branch=${branchId}`);
+    if (companyId) params.push(`company=${companyId}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return apiClient.get<{ message: string; kitchens: Kitchen[] }>(url);
+  },
+
+  getKitchenById: async (id: string): Promise<{ message: string; kitchen: Kitchen }> => {
+    return apiClient.get<{ message: string; kitchen: Kitchen }>(`/category-product/kitchens/${id}`);
+  },
+
+  createKitchen: async (data: { name: string; company: string; branch: string }): Promise<{ message: string; kitchen: Kitchen }> => {
+    return apiClient.post<{ message: string; kitchen: Kitchen }>('/category-product/kitchens', data);
+  },
+
+  updateKitchen: async (id: string, data: { name?: string }): Promise<{ message: string; kitchen: Kitchen }> => {
+    return apiClient.put<{ message: string; kitchen: Kitchen }>(`/category-product/kitchens/${id}`, data);
+  },
+
+  deleteKitchen: async (id: string): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(`/category-product/kitchens/${id}`);
   },
 };
