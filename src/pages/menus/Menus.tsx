@@ -156,15 +156,15 @@ export const Menus: React.FC = () => {
   ];
 
   if (menusLoading || companiesLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Menüler</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menüler</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Menü bilgilerini yönetin
           </p>
         </div>
@@ -185,10 +185,10 @@ export const Menus: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Menü Oluştur</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Menü Oluştur</h3>
               <form onSubmit={handleCreateMenu} className="space-y-4">
                 <Input
                   label="Menü Adı"
@@ -235,10 +235,10 @@ export const Menus: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && selectedMenu && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Menü Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Menü Düzenle</h3>
               <form onSubmit={handleUpdateMenu} className="space-y-4">
                 <Input
                   label="Menü Adı"

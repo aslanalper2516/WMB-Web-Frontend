@@ -933,10 +933,10 @@ export const MenuDetail: React.FC = () => {
 
           {/* Ürün-Mutfak Atama Formu Modal */}
           {showAssignProductToKitchen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black dark:bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
-                  <h3 className="text-lg font-medium mb-4">Ürün Ekle: {kitchens.find(k => k._id === selectedKitchen)?.name}</h3>
+                  <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-white">Ürün Ekle: {kitchens.find(k => k._id === selectedKitchen)?.name}</h3>
                   <form onSubmit={handleAssignProductToKitchen} className="space-y-4">
                     {/* Kategori Seçimi */}
                     <div>
@@ -991,7 +991,7 @@ export const MenuDetail: React.FC = () => {
                     {/* Ürün Seçimi - Multi Select */}
                     <div>
                       <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                           Ürünler ({selectedProducts.length} seçili)
                         </label>
                         <Button
@@ -1036,7 +1036,7 @@ export const MenuDetail: React.FC = () => {
                           })()}
                         </Button>
                       </div>
-                      <div className="border rounded-lg max-h-96 overflow-y-auto">
+                      <div className="border border-gray-200 dark:border-gray-700 rounded-lg max-h-96 overflow-y-auto bg-white dark:bg-gray-700">
                         {(selectedCategoryForKitchen 
                           ? menuProducts.filter(mp => {
                               const catId = mp.category ? (typeof mp.category === 'string' ? mp.category : mp.category._id) : '';
@@ -1052,7 +1052,7 @@ export const MenuDetail: React.FC = () => {
                           return (
                             <div
                               key={productId}
-                              className="flex items-center space-x-3 p-3 hover:bg-gray-50 border-b last:border-b-0"
+                              className="flex items-center space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0"
                             >
                               <input
                                 type="checkbox"
@@ -1065,11 +1065,11 @@ export const MenuDetail: React.FC = () => {
                                     setSelectedProducts(selectedProducts.filter(id => id !== productId));
                                   }
                                 }}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                               />
                               <label htmlFor={`product-${productId}`} className="flex-1 cursor-pointer">
-                                <div className="text-sm font-medium text-gray-900">{productName}</div>
-                                <div className="text-xs text-gray-500">Kategori: {categoryName}</div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">{productName}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">Kategori: {categoryName}</div>
                               </label>
                             </div>
                           );
@@ -1078,7 +1078,7 @@ export const MenuDetail: React.FC = () => {
                     </div>
 
                     <div className="flex justify-between items-center pt-4">
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         {selectedProducts.length > 0 && (
                           <span className="font-medium">{selectedProducts.length} ürün eklenecek</span>
                         )}
@@ -1113,25 +1113,25 @@ export const MenuDetail: React.FC = () => {
 
           {/* Mutfak Detay Modal */}
           {showKitchenDetail && selectedKitchen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black dark:bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">Mutfak: {kitchens.find(k => k._id === selectedKitchen)?.name}</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Mutfak: {kitchens.find(k => k._id === selectedKitchen)?.name}</h3>
                     <button
                       onClick={() => {
                         setShowKitchenDetail(false);
                         setSelectedKitchen('');
                       }}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                       ✕
                     </button>
                   </div>
                   
-                  <h4 className="text-md font-medium mb-3">Atanmış Ürünler</h4>
+                  <h4 className="text-md font-medium mb-3 text-gray-900 dark:text-white">Atanmış Ürünler</h4>
                   {kitchenProducts.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       Bu mutfakta henüz ürün bulunmuyor.
                     </div>
                   ) : (

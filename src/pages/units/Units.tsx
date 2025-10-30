@@ -184,13 +184,13 @@ export const Units: React.FC = () => {
   ];
 
   if (amountUnitsLoading || currencyUnitsLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-800">Birimler</h2>
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Birimler</h2>
         <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="h-5 w-5 mr-2" /> Yeni Birim
         </Button>
@@ -198,14 +198,14 @@ export const Units: React.FC = () => {
 
       {/* Tab Navigation */}
       <div className="mb-6">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('amount')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'amount'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <Ruler className="h-5 w-5 inline mr-2" />
@@ -215,8 +215,8 @@ export const Units: React.FC = () => {
               onClick={() => setActiveTab('currency')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'currency'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <DollarSign className="h-5 w-5 inline mr-2" />
@@ -233,13 +233,13 @@ export const Units: React.FC = () => {
             amountUnitsData?.units && amountUnitsData.units.length > 0 ? (
               <Table data={amountUnitsData.units} columns={amountColumns} />
             ) : (
-              <p className="text-center text-gray-500 py-8">Henüz hiç miktar birimi oluşturulmamış.</p>
+              <p className="text-center text-gray-500 dark:text-gray-400 py-8">Henüz hiç miktar birimi oluşturulmamış.</p>
             )
           ) : (
             currencyUnitsData?.units && currencyUnitsData.units.length > 0 ? (
               <Table data={currencyUnitsData.units} columns={currencyColumns} />
             ) : (
-              <p className="text-center text-gray-500 py-8">Henüz hiç para birimi oluşturulmamış.</p>
+              <p className="text-center text-gray-500 dark:text-gray-400 py-8">Henüz hiç para birimi oluşturulmamış.</p>
             )
           )}
         </CardContent>
@@ -247,10 +247,10 @@ export const Units: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Yeni {activeTab === 'amount' ? 'Miktar' : 'Para'} Birimi
               </h3>
               <form onSubmit={handleCreate} className="space-y-4">
@@ -291,10 +291,10 @@ export const Units: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 {activeTab === 'amount' ? 'Miktar' : 'Para'} Birimi Düzenle
               </h3>
               <form onSubmit={handleUpdate} className="space-y-4">

@@ -81,16 +81,16 @@ export const Profile: React.FC = () => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Profil</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Profil</h1>
 
         {/* Success/Error Messages */}
         {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md text-green-700">
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-md text-green-700 dark:text-green-400">
             {successMessage}
           </div>
         )}
         {errorMessage && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-400">
             {errorMessage}
           </div>
         )}
@@ -99,7 +99,7 @@ export const Profile: React.FC = () => {
         <Card className="mb-6">
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Kullanıcı Bilgileri</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Kullanıcı Bilgileri</h2>
               {!isEditingProfile && (
                 <Button
                   variant="outline"
@@ -113,34 +113,34 @@ export const Profile: React.FC = () => {
             {!isEditingProfile ? (
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-500">Ad Soyad</p>
-                    <p className="text-base font-medium text-gray-900">{user?.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Ad Soyad</p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white">{user?.name}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-500">E-posta</p>
-                    <p className="text-base font-medium text-gray-900">{user?.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">E-posta</p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white">{user?.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <Shield className="h-5 w-5 text-gray-400" />
+                  <Shield className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-500">Rol</p>
-                    <p className="text-base font-medium text-gray-900">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Rol</p>
+                    <p className="text-base font-medium text-gray-900 dark:text-white">
                       {typeof user?.role === 'string' ? user.role : user?.role?.name || 'N/A'}
                     </p>
                   </div>
                 </div>
                 {user?.branch && (
                   <div className="flex items-center space-x-3">
-                    <MapPin className="h-5 w-5 text-gray-400" />
+                    <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     <div>
-                      <p className="text-sm text-gray-500">Şube</p>
-                      <p className="text-base font-medium text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Şube</p>
+                      <p className="text-base font-medium text-gray-900 dark:text-white">
                         {typeof user.branch === 'string' ? user.branch : user.branch.name}
                       </p>
                     </div>
@@ -148,10 +148,10 @@ export const Profile: React.FC = () => {
                 )}
                 {user?.company && (
                   <div className="flex items-center space-x-3">
-                    <Building2 className="h-5 w-5 text-gray-400" />
+                    <Building2 className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     <div>
-                      <p className="text-sm text-gray-500">Şirket</p>
-                      <p className="text-base font-medium text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Şirket</p>
+                      <p className="text-base font-medium text-gray-900 dark:text-white">
                         {typeof user.company === 'string' ? user.company : user.company.name}
                       </p>
                     </div>
@@ -161,7 +161,7 @@ export const Profile: React.FC = () => {
             ) : (
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Ad Soyad
                   </label>
                   <Input
@@ -173,7 +173,7 @@ export const Profile: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     E-posta
                   </label>
                   <Input
@@ -213,7 +213,7 @@ export const Profile: React.FC = () => {
         <Card>
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Şifre Değiştir</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Şifre Değiştir</h2>
               {!isChangingPassword && (
                 <Button
                   variant="outline"
@@ -227,7 +227,7 @@ export const Profile: React.FC = () => {
             {isChangingPassword && (
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Mevcut Şifre
                   </label>
                   <Input
@@ -239,7 +239,7 @@ export const Profile: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Yeni Şifre
                   </label>
                   <Input
@@ -252,7 +252,7 @@ export const Profile: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Yeni Şifre (Tekrar)
                   </label>
                   <Input

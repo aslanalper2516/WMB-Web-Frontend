@@ -179,15 +179,15 @@ export const Kitchens: React.FC = () => {
   ];
 
   if (isLoading || companiesLoading || branchesLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mutfaklar</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mutfaklar</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Mutfak bilgilerini yönetin
           </p>
         </div>
@@ -211,10 +211,10 @@ export const Kitchens: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Mutfak</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Mutfak</h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <Input
                   label="Mutfak Adı"
@@ -224,12 +224,12 @@ export const Kitchens: React.FC = () => {
                   required
                 />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şirket</label>
                   <select
                     name="company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value, branch: '' })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
                     <option value="">Şirket Seçin</option>
@@ -241,12 +241,12 @@ export const Kitchens: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şube</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şube</label>
                   <select
                     name="branch"
                     value={formData.branch}
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
                     required
                     disabled={!formData.company}
                   >
@@ -290,10 +290,10 @@ export const Kitchens: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Mutfak Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Mutfak Düzenle</h3>
               <form onSubmit={handleEdit} className="space-y-4">
                 <Input
                   label="Mutfak Adı"
@@ -303,12 +303,12 @@ export const Kitchens: React.FC = () => {
                   required
                 />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şirket</label>
                   <select
                     name="company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value, branch: '' })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
                     <option value="">Şirket Seçin</option>
@@ -320,12 +320,12 @@ export const Kitchens: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şube</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şube</label>
                   <select
                     name="branch"
                     value={formData.branch}
                     onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                     disabled={!formData.company}
                   >

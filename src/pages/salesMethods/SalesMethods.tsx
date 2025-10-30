@@ -188,15 +188,15 @@ export const SalesMethods: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Satış Yöntemleri</h1>
-          <p className="text-gray-600">Satış yöntemi yönetimi</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Satış Yöntemleri</h1>
+          <p className="text-gray-600 dark:text-gray-400">Satış yöntemi yönetimi</p>
         </div>
         <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -215,13 +215,13 @@ export const SalesMethods: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Satış Yöntemi Oluştur</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Satış Yöntemi Oluştur</h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Satış Yöntemi Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Satış Yöntemi Adı</label>
                   <Input
                     name="name"
                     value={formData.name}
@@ -230,7 +230,7 @@ export const SalesMethods: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Ana Satış Yöntemi (Opsiyonel)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ana Satış Yöntemi (Opsiyonel)</label>
                   <select
                     value={formData.parent || ''}
                     onChange={(e) => setFormData({ ...formData, parent: e.target.value || undefined })}
@@ -250,7 +250,7 @@ export const SalesMethods: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Açıklama</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Açıklama</label>
                   <textarea
                     name="description"
                     value={formData.description}
@@ -282,13 +282,13 @@ export const SalesMethods: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Satış Yöntemi Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Satış Yöntemi Düzenle</h3>
               <form onSubmit={handleUpdate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Satış Yöntemi Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Satış Yöntemi Adı</label>
                   <Input
                     name="name"
                     value={formData.name}
@@ -297,7 +297,7 @@ export const SalesMethods: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Ana Satış Yöntemi (Opsiyonel)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ana Satış Yöntemi (Opsiyonel)</label>
                   <select
                     value={formData.parent || ''}
                     onChange={(e) => setFormData({ ...formData, parent: e.target.value || undefined })}
@@ -320,7 +320,7 @@ export const SalesMethods: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Açıklama</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Açıklama</label>
                   <textarea
                     name="description"
                     value={formData.description}

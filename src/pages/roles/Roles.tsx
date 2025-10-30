@@ -240,15 +240,15 @@ export const Roles: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Roller</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Roller</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Rol bilgilerini yönetin
           </p>
         </div>
@@ -269,10 +269,10 @@ export const Roles: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Rol</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Rol</h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <Input
                   label="Rol Adı"
@@ -282,7 +282,7 @@ export const Roles: React.FC = () => {
                   required
                 />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Kapsam</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kapsam</label>
                   <select
                     name="scope"
                     value={formData.scope}
@@ -330,10 +330,10 @@ export const Roles: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Rol Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Rol Düzenle</h3>
               <form onSubmit={handleEdit} className="space-y-4">
                 <Input
                   label="Rol Adı"
@@ -343,12 +343,12 @@ export const Roles: React.FC = () => {
                   required
                 />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Kapsam</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Kapsam</label>
                   <select
                     name="scope"
                     value={formData.scope}
                     onChange={(e) => setFormData({ ...formData, scope: e.target.value as 'GLOBAL' | 'BRANCH' })} 
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
                     <option value="GLOBAL">Global</option>
@@ -391,18 +391,18 @@ export const Roles: React.FC = () => {
 
       {/* Assign Permission Modal */}
       {isAssignModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 {selectedRole?.name} Rolüne İzin Ata
               </h3>
               <form onSubmit={handleAssignPermission} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">İzin Seçin</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">İzin Seçin</label>
                   {availablePermissions.length === 0 ? (
-                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                      <p className="text-sm text-yellow-800">
+                    <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-400">
                         Bu role atanabilecek yeni izin bulunmuyor. Tüm mevcut izinler zaten atanmış.
                       </p>
                     </div>
@@ -411,7 +411,7 @@ export const Roles: React.FC = () => {
                       name="permission"
                       value={selectedPermission}
                       onChange={(e) => setSelectedPermission(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       required
                     >
                       <option value="">İzin Seçin</option>
@@ -450,11 +450,11 @@ export const Roles: React.FC = () => {
 
       {/* View Permissions Modal */}
       {isViewPermissionsModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-2/3 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-2/3 max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                   {selectedRole?.name} Rolünün İzinleri
                 </h3>
                 <Button
@@ -469,24 +469,24 @@ export const Roles: React.FC = () => {
                 {rolePermissions.length > 0 ? (
                   <div className="space-y-2">
                     {rolePermissions.map((rolePermission, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
                         <div className="flex items-center space-x-3">
-                          <Shield className="h-5 w-5 text-blue-600" />
+                          <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           <div>
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-gray-900 dark:text-white">
                               {typeof rolePermission.permission === 'string' 
                                 ? rolePermission.permission 
                                 : (rolePermission.permission as Permission)?.name || 'Bilinmeyen İzin'
                               }
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                               Atanma Tarihi: {new Date(rolePermission.createdAt).toLocaleDateString('tr-TR')}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           {rolePermission.branch && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
                               Şube: {rolePermission.branch}
                             </span>
                           )}
@@ -510,8 +510,8 @@ export const Roles: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">Bu role henüz hiç izin atanmamış.</p>
+                    <Shield className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">Bu role henüz hiç izin atanmamış.</p>
                   </div>
                 )}
               </div>

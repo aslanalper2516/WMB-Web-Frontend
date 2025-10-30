@@ -369,15 +369,15 @@ export const Branches: React.FC = () => {
   ];
 
   if (branchesLoading || companiesLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Şubeler</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Şubeler</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Şube bilgilerini yönetin
           </p>
         </div>
@@ -398,10 +398,10 @@ export const Branches: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Şube</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Şube</h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <Input
                   label="Şube Adı"
@@ -564,10 +564,10 @@ export const Branches: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Şube Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Şube Düzenle</h3>
               <form onSubmit={handleEdit} className="space-y-4">
                 <Input
                   label="Şube Adı"
@@ -594,12 +594,12 @@ export const Branches: React.FC = () => {
                 />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şirket</label>
                   <select
                     name="company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
                     <option value="">Şirket Seçin</option>
@@ -619,11 +619,11 @@ export const Branches: React.FC = () => {
                   required
                 />
                 
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Adres Bilgileri</h4>
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Adres Bilgileri</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         İl
                       </label>
                       <select
@@ -634,7 +634,7 @@ export const Branches: React.FC = () => {
                           setSelectedProvinceId(selectedProvince?.id || null);
                           setFormData({ ...formData, province: e.target.value, district: '', neighborhood: '', street: '' });
                         }}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value="">İl Seçin</option>
                         {provinces.map((province) => (
@@ -645,7 +645,7 @@ export const Branches: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         İlçe
                       </label>
                       <select
@@ -657,7 +657,7 @@ export const Branches: React.FC = () => {
                           setFormData({ ...formData, district: e.target.value, neighborhood: '', street: '' });
                         }}
                         disabled={!selectedProvinceId}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
                       >
                         <option value="">İlçe Seçin</option>
                         {districts.map((district) => (
@@ -730,11 +730,11 @@ export const Branches: React.FC = () => {
 
       {/* Sales Methods Modal */}
       {isSalesMethodsModalOpen && selectedBranch && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-2/3 max-w-4xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-2/3 max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                   {selectedBranch.name} - Satış Yöntemleri
                 </h3>
                 <Button
@@ -748,15 +748,15 @@ export const Branches: React.FC = () => {
               <div className="space-y-4">
                 {/* Mevcut Satış Yöntemleri */}
                 <div>
-                  <h4 className="text-md font-medium text-gray-700 mb-2">Mevcut Satış Yöntemleri</h4>
+                  <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Mevcut Satış Yöntemleri</h4>
                   {branchSalesMethodsData?.salesMethods && branchSalesMethodsData.salesMethods.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {branchSalesMethodsData.salesMethods.map((branchSalesMethod: BranchSalesMethod) => (
-                        <div key={branchSalesMethod._id} className="border rounded-lg p-3 flex justify-between items-center">
+                        <div key={branchSalesMethod._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex justify-between items-center bg-white dark:bg-gray-700">
                           <div>
-                            <p className="font-medium">{branchSalesMethod.salesMethod.name}</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{branchSalesMethod.salesMethod.name}</p>
                             {branchSalesMethod.salesMethod.description && (
-                              <p className="text-sm text-gray-500">{branchSalesMethod.salesMethod.description}</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">{branchSalesMethod.salesMethod.description}</p>
                             )}
                           </div>
                           <Button
@@ -770,13 +770,13 @@ export const Branches: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500">Bu şubeye henüz satış yöntemi atanmamış.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Bu şubeye henüz satış yöntemi atanmamış.</p>
                   )}
                 </div>
 
                 {/* Yeni Satış Yöntemi Atama */}
-                <div className="border-t pt-4">
-                  <h4 className="text-md font-medium text-gray-700 mb-2">Yeni Satış Yöntemi Ata</h4>
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Yeni Satış Yöntemi Ata</h4>
                   <form onSubmit={handleAssignSalesMethod} className="flex space-x-2">
                     <Select
                       value={selectedSalesMethod}
@@ -809,10 +809,10 @@ export const Branches: React.FC = () => {
 
       {/* Manager Modal */}
       {isManagerModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Yönetici Ata: {selectedBranch?.name}
               </h3>
               <div className="space-y-4">
@@ -823,8 +823,8 @@ export const Branches: React.FC = () => {
                   const managerUser = usersData?.users.find(u => (u._id || u.id) === managerId);
                   
                   return (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-4">
-                      <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-4">
+                      <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-2">
                         Mevcut Yönetici
                       </p>
                       <div className="flex items-start space-x-2">
@@ -836,10 +836,10 @@ export const Branches: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
                             {managerUser?.name || 'Bilinmiyor'}
                           </p>
-                          <p className="text-xs text-gray-600 mt-0.5">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                             ✉️ {managerUser?.email || 'Email bulunamadı'}
                           </p>
                         </div>
@@ -849,7 +849,7 @@ export const Branches: React.FC = () => {
                 })()}
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Yeni Yönetici Seç
                   </label>
                   <select
@@ -858,7 +858,7 @@ export const Branches: React.FC = () => {
                       console.log('🎯 Selected manager ID (Branch):', e.target.value);
                       setSelectedManager(e.target.value);
                     }}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Yönetici Seçin</option>
                     {usersData?.users.map((user) => {

@@ -18,7 +18,7 @@ export const CardHeader: React.FC<{ children: React.ReactNode; className?: strin
   className = '' 
 }) => {
   return (
-    <div className={`px-4 py-5 sm:px-6 ${className}`}>
+    <div className={`px-4 py-5 sm:px-6 text-gray-900 dark:text-white ${className}`}>
       {children}
     </div>
   );
@@ -29,7 +29,7 @@ export const CardContent: React.FC<{ children: React.ReactNode; className?: stri
   className = '' 
 }) => {
   return (
-    <div className={`px-4 py-5 sm:p-6 ${className}`}>
+    <div className={`px-4 py-5 sm:p-6 text-gray-900 dark:text-white ${className}`}>
       {children}
     </div>
   );

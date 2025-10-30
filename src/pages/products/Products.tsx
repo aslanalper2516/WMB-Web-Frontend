@@ -322,15 +322,15 @@ export const Products: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Ürünler</h1>
-          <p className="text-gray-600">Ürün yönetimi</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Ürünler</h1>
+          <p className="text-gray-600 dark:text-gray-400">Ürün yönetimi</p>
         </div>
         <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -349,13 +349,13 @@ export const Products: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Ürün Oluştur</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Ürün Oluştur</h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Ürün Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ürün Adı</label>
                   <Input
                     name="name"
                     value={formData.name}
@@ -364,22 +364,22 @@ export const Products: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Açıklama</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Açıklama</label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     rows={3}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şirket</label>
                   <select
                     name="company"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
                     <option value="">Şirket Seçin</option>
@@ -391,12 +391,12 @@ export const Products: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Varsayılan Satış Yöntemi</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Varsayılan Satış Yöntemi</label>
                   <select
                     name="defaultSalesMethod"
                     value={formData.defaultSalesMethod}
                     onChange={(e) => setFormData({ ...formData, defaultSalesMethod: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-gray-100"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                     disabled
                   >
@@ -407,10 +407,10 @@ export const Products: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-gray-500">Varsayılan olarak "Şube Satış" seçilidir</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Varsayılan olarak "Şube Satış" seçilidir</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Başlangıç Fiyatı *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Başlangıç Fiyatı *</label>
                   <Input
                     type="number"
                     step="0.01"
@@ -421,15 +421,15 @@ export const Products: React.FC = () => {
                     placeholder="0.00"
                     required
                   />
-                  <p className="mt-1 text-xs text-gray-500">Ürün oluşturulurken varsayılan satış yöntemi için fiyat girilmesi zorunludur</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ürün oluşturulurken varsayılan satış yöntemi için fiyat girilmesi zorunludur</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Para Birimi</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Para Birimi</label>
                   <select
                     name="initialCurrencyUnit"
                     value={initialCurrencyUnit}
                     onChange={(e) => setInitialCurrencyUnit(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
                   >
                     <option value="">Para Birimi Seçin</option>
@@ -462,13 +462,13 @@ export const Products: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Ürün Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Ürün Düzenle</h3>
               <form onSubmit={handleUpdate} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Ürün Adı</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ürün Adı</label>
                   <Input
                     name="name"
                     value={formData.name}
@@ -477,7 +477,7 @@ export const Products: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Açıklama</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Açıklama</label>
                   <textarea
                     name="description"
                     value={formData.description}
@@ -487,7 +487,7 @@ export const Products: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Şirket</label>
                   <select
                     name="company"
                     value={formData.company}
@@ -504,7 +504,7 @@ export const Products: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Varsayılan Satış Yöntemi</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Varsayılan Satış Yöntemi</label>
                   <select
                     name="defaultSalesMethod"
                     value={formData.defaultSalesMethod}
@@ -543,11 +543,11 @@ export const Products: React.FC = () => {
 
       {/* Price Modal */}
       {isPriceModalOpen && selectedProduct && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-4/5 max-w-5xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-4/5 max-w-5xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                   {selectedProduct.name} - Fiyat Yönetimi
                 </h3>
                 <Button variant="outline" onClick={() => setIsPriceModalOpen(false)}>
@@ -556,38 +556,38 @@ export const Products: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md p-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-400">
                     Satış yöntemlerine göre fiyat belirleyin. Mevcut fiyatlar listelenir, yeni fiyat ekleyebilir veya düzenleyebilirsiniz.
                   </p>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satış Yöntemi</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fiyat</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Para Birimi</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Satış Yöntemi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fiyat</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Para Birimi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">İşlemler</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {salesMethods.map((method) => {
                         const existing = productPrices.find(p => (typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id) === method._id);
                         return (
-                          <tr key={method._id} className="hover:bg-gray-50">
+                          <tr key={method._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{method.name}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{method.name}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {existing ? (<span className="text-sm text-gray-900">{existing.price}</span>) : (<span className="text-sm text-gray-500">Fiyat yok</span>)}
+                              {existing ? (<span className="text-sm text-gray-900 dark:text-white">{existing.price}</span>) : (<span className="text-sm text-gray-500 dark:text-gray-400">Fiyat yok</span>)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {existing ? (
-                                <span className="text-sm text-gray-900">{typeof existing.currencyUnit === 'string' ? existing.currencyUnit : (existing.currencyUnit?.name || '-')}</span>
+                                <span className="text-sm text-gray-900 dark:text-white">{typeof existing.currencyUnit === 'string' ? existing.currencyUnit : (existing.currencyUnit?.name || '-')}</span>
                               ) : (
-                                <span className="text-sm text-gray-500">-</span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -604,9 +604,9 @@ export const Products: React.FC = () => {
 
                 {/* Inline editor */}
                 {editingSalesMethodId && (
-                  <div className="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Fiyat</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fiyat</label>
                       <Input
                         type="number"
                         value={editingPrice}
@@ -617,9 +617,9 @@ export const Products: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Para Birimi</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Para Birimi</label>
                       <select
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         value={editingCurrencyUnitId}
                         onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
                         required

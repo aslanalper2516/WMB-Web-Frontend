@@ -111,15 +111,15 @@ export const Permissions: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-white">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">İzinler</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">İzinler</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             İzin bilgilerini yönetin
           </p>
         </div>
@@ -140,10 +140,10 @@ export const Permissions: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni İzin</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni İzin</h3>
               <form onSubmit={handleCreate} className="space-y-4">
                 <Input
                   label="İzin Adı"
@@ -181,10 +181,10 @@ export const Permissions: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">İzin Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">İzin Düzenle</h3>
               <form onSubmit={handleEdit} className="space-y-4">
                 <Input
                   label="İzin Adı"
