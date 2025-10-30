@@ -98,22 +98,24 @@ export const categoryProductApi = {
     return apiClient.delete<{ message: string }>(`/category-product/product-ingredients/${id}`);
   },
 
-  // Product Prices
-  getProductPrices: async (productId?: string): Promise<{ message: string; prices: ProductPrice[] }> => {
-    const url = productId ? `/category-product/product-prices?product=${productId}` : '/category-product/product-prices';
-    return apiClient.get<{ message: string; prices: ProductPrice[] }>(url);
+  // Product Prices (routes: /products/:id/prices, /prices/:id)
+  getProductPrices: async (productId: string): Promise<{ message: string; prices: ProductPrice[] }> => {
+    return apiClient.get<{ message: string; prices: ProductPrice[] }>(`/category-product/products/${productId}/prices`);
   },
 
-  createProductPrice: async (data: CreateProductPriceRequest): Promise<{ message: string; price: ProductPrice }> => {
-    return apiClient.post<{ message: string; price: ProductPrice }>('/category-product/product-prices', data);
+  createProductPrice: async (
+    productId: string,
+    data: { salesMethod: string; price: number; currencyUnit?: string; branch?: string; company?: string }
+  ): Promise<{ message: string; price: ProductPrice }> => {
+    return apiClient.post<{ message: string; price: ProductPrice }>(`/category-product/products/${productId}/prices`, data);
   },
 
-  updateProductPrice: async (id: string, data: Partial<CreateProductPriceRequest>): Promise<{ message: string; price: ProductPrice }> => {
-    return apiClient.put<{ message: string; price: ProductPrice }>(`/category-product/product-prices/${id}`, data);
+  updateProductPriceRaw: async (id: string, data: any): Promise<{ message: string; price: ProductPrice }> => {
+    return apiClient.put<{ message: string; price: ProductPrice }>(`/category-product/prices/${id}`, data);
   },
 
   deleteProductPrice: async (id: string): Promise<{ message: string }> => {
-    return apiClient.delete<{ message: string }>(`/category-product/product-prices/${id}`);
+    return apiClient.delete<{ message: string }>(`/category-product/prices/${id}`);
   },
 
   // Sales Methods

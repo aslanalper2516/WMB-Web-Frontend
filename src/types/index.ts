@@ -254,9 +254,11 @@ export interface CreateSalesMethodRequest {
 }
 
 export interface CreateProductPriceRequest {
-  product: string;
+  salesMethod: string;
   price: number;
-  currency: string;
+  currencyUnit?: string;
+  branch?: string;
+  company?: string;
 }
 
 export interface BranchSalesMethod {

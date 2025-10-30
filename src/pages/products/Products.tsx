@@ -5,13 +5,21 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import type { Product, CreateProductRequest } from '../../types';
+import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
+import type { Product, CreateProductRequest, ProductPrice, SalesMethod, CurrencyUnit } from '../../types';
 
 export const Products: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productPrices, setProductPrices] = useState<ProductPrice[]>([]);
+  const [salesMethods, setSalesMethods] = useState<SalesMethod[]>([]);
+  const [currencyUnits, setCurrencyUnits] = useState<CurrencyUnit[]>([]);
+  const [editingPriceId, setEditingPriceId] = useState<string>('');
+  const [editingSalesMethodId, setEditingSalesMethodId] = useState<string>('');
+  const [editingPrice, setEditingPrice] = useState<number>(0);
+  const [editingCurrencyUnitId, setEditingCurrencyUnitId] = useState<string>('');
   const [formData, setFormData] = useState<CreateProductRequest>({
     name: '',
     description: '',
@@ -28,6 +36,11 @@ export const Products: React.FC = () => {
   const { data: salesMethodsData } = useQuery({
     queryKey: ['sales-methods'],
     queryFn: () => categoryProductApi.getSalesMethods(),
+  });
+
+  const { data: currencyUnitsData } = useQuery({
+    queryKey: ['currency-units'],
+    queryFn: () => categoryProductApi.getCurrencyUnits(),
   });
 
   const createMutation = useMutation({
@@ -85,6 +98,66 @@ export const Products: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
+  const openPriceModal = async (product: Product) => {
+    setSelectedProduct(product);
+    setIsPriceModalOpen(true);
+    try {
+      const [pricesRes, methodsRes, unitsRes] = await Promise.all([
+        categoryProductApi.getProductPrices(product._id),
+        categoryProductApi.getSalesMethods(),
+        categoryProductApi.getCurrencyUnits(),
+      ]);
+      setProductPrices(pricesRes.prices);
+      setSalesMethods(methodsRes.methods);
+      setCurrencyUnits(unitsRes.units);
+      setEditingPriceId('');
+      setEditingSalesMethodId('');
+      setEditingPrice(0);
+      setEditingCurrencyUnitId(unitsRes.units?.[0]?._id || '');
+    } catch (e) {
+      console.error('Fiyat verileri yüklenemedi:', e);
+    }
+  };
+
+  const handleEditPrice = (salesMethodId: string) => {
+    setEditingSalesMethodId(salesMethodId);
+    const existing = productPrices.find(p => (typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id) === salesMethodId);
+    if (existing) {
+      setEditingPriceId(existing._id);
+      setEditingPrice(existing.price);
+      setEditingCurrencyUnitId(typeof existing.currencyUnit === 'string' ? existing.currencyUnit : existing.currencyUnit?._id || '');
+    } else {
+      setEditingPriceId('');
+      setEditingPrice(0);
+      setEditingCurrencyUnitId(currencyUnitsData?.units?.[0]?._id || '');
+    }
+  };
+
+  const handleSavePrice = async () => {
+    if (!selectedProduct || !editingSalesMethodId || editingPrice <= 0) return;
+    try {
+      if (editingPriceId) {
+        // Backend update şeması tutarsız; güvenli yol: mevcut kaydı sil ve yeniden oluştur
+        await categoryProductApi.deleteProductPrice(editingPriceId);
+      }
+      await categoryProductApi.createProductPrice(selectedProduct._id, {
+        salesMethod: editingSalesMethodId,
+        price: editingPrice,
+        currencyUnit: editingCurrencyUnitId || undefined,
+      });
+      // Yeniden yükle
+      const pricesRes = await categoryProductApi.getProductPrices(selectedProduct._id);
+      setProductPrices(pricesRes.prices);
+      // Reset
+      setEditingPriceId('');
+      setEditingSalesMethodId('');
+      setEditingPrice(0);
+      setEditingCurrencyUnitId(currencyUnits?.[0]?._id || '');
+    } catch (e) {
+      console.error('Fiyat kaydedilemedi:', e);
+    }
+  };
+
   const products = productsData?.products || [];
 
   const columns = [
@@ -123,6 +196,14 @@ export const Products: React.FC = () => {
       title: 'İşlemler',
       render: (_value: any, item: Product) => (
         <div className="flex space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openPriceModal(item)}
+            title="Fiyatları Düzenle"
+          >
+            <DollarSign className="h-4 w-4" />
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -291,6 +372,105 @@ export const Products: React.FC = () => {
                   </Button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Price Modal */}
+      {isPriceModalOpen && selectedProduct && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-4/5 max-w-5xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {selectedProduct.name} - Fiyat Yönetimi
+                </h3>
+                <Button variant="outline" onClick={() => setIsPriceModalOpen(false)}>
+                  Kapat
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <p className="text-sm text-blue-800">
+                    Satış yöntemlerine göre fiyat belirleyin. Mevcut fiyatlar listelenir, yeni fiyat ekleyebilir veya düzenleyebilirsiniz.
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Satış Yöntemi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fiyat</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Para Birimi</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {salesMethods.map((method) => {
+                        const existing = productPrices.find(p => (typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id) === method._id);
+                        return (
+                          <tr key={method._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{method.name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {existing ? (<span className="text-sm text-gray-900">{existing.price}</span>) : (<span className="text-sm text-gray-500">Fiyat yok</span>)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {existing ? (
+                                <span className="text-sm text-gray-900">{typeof existing.currencyUnit === 'string' ? existing.currencyUnit : (existing.currencyUnit?.name || '-')}</span>
+                              ) : (
+                                <span className="text-sm text-gray-500">-</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <Button size="sm" variant="outline" onClick={() => handleEditPrice(method._id)}>
+                                {existing ? 'Düzenle' : 'Fiyat Ekle'}
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Inline editor */}
+                {editingSalesMethodId && (
+                  <div className="mt-4 border-t pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fiyat</label>
+                      <Input
+                        type="number"
+                        value={editingPrice}
+                        onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
+                        placeholder="Fiyat giriniz"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Para Birimi</label>
+                      <select
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        value={editingCurrencyUnitId}
+                        onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
+                      >
+                        {currencyUnits.map((u) => (
+                          <option key={u._id} value={u._id}>{u.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-end justify-end space-x-3">
+                      <Button variant="outline" onClick={() => { setEditingSalesMethodId(''); setEditingPriceId(''); }}>İptal</Button>
+                      <Button onClick={handleSavePrice} disabled={editingPrice <= 0}>Kaydet</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
