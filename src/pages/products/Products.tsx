@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoryProductApi } from '../../api/categoryProduct';
+import { companyBranchApi } from '../../api/companyBranch';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -24,6 +25,7 @@ export const Products: React.FC = () => {
     name: '',
     description: '',
     defaultSalesMethod: '',
+    company: '',
   });
 
   const queryClient = useQueryClient();
@@ -43,12 +45,17 @@ export const Products: React.FC = () => {
     queryFn: () => categoryProductApi.getCurrencyUnits(),
   });
 
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies'],
+    queryFn: () => companyBranchApi.getCompanies(),
+  });
+
   const createMutation = useMutation({
     mutationFn: categoryProductApi.createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setIsCreateModalOpen(false);
-      setFormData({ name: '', description: '', defaultSalesMethod: '' });
+      setFormData({ name: '', description: '', defaultSalesMethod: '', company: '' });
     },
   });
 
@@ -59,7 +66,7 @@ export const Products: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setIsEditModalOpen(false);
       setSelectedProduct(null);
-      setFormData({ name: '', description: '', defaultSalesMethod: '' });
+      setFormData({ name: '', description: '', defaultSalesMethod: '', company: '' });
     },
   });
 
@@ -94,6 +101,7 @@ export const Products: React.FC = () => {
       name: product.name,
       description: product.description || '',
       defaultSalesMethod: typeof product.defaultSalesMethod === 'string' ? product.defaultSalesMethod : product.defaultSalesMethod._id,
+      company: typeof product.company === 'string' ? product.company : (product.company?._id || ''),
     });
     setIsEditModalOpen(true);
   };
@@ -179,6 +187,15 @@ export const Products: React.FC = () => {
           return item.defaultSalesMethod;
         }
         return item.defaultSalesMethod?.name || '-';
+      },
+    },
+    {
+      key: 'company',
+      title: 'Şirket',
+      render: (_value: any, item: Product) => {
+        if (!item.company) return '-';
+        if (typeof item.company === 'string') return item.company;
+        return item.company.name || '-';
       },
     },
     {
@@ -276,6 +293,23 @@ export const Products: React.FC = () => {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <select
+                    name="company"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  >
+                    <option value="">Şirket Seçin</option>
+                    {companiesData?.companies.map((company) => (
+                      <option key={company._id} value={company._id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Varsayılan Satış Yöntemi</label>
                   <select
                     name="defaultSalesMethod"
@@ -338,6 +372,23 @@ export const Products: React.FC = () => {
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     rows={3}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <select
+                    name="company"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  >
+                    <option value="">Şirket Seçin</option>
+                    {companiesData?.companies.map((company) => (
+                      <option key={company._id} value={company._id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Varsayılan Satış Yöntemi</label>

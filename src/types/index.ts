@@ -153,6 +153,7 @@ export interface Product {
   name: string;
   description?: string;
   defaultSalesMethod: string | { _id: string; name: string };
+  company?: string | Company;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -201,6 +202,7 @@ export interface CreateProductRequest {
   name: string;
   description?: string;
   defaultSalesMethod: string;
+  company: string;
 }
 
 export interface CreateKitchenRequest {
