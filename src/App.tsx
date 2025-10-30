@@ -225,9 +225,9 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

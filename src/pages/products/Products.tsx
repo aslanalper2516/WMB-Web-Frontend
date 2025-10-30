@@ -21,6 +21,9 @@ export const Products: React.FC = () => {
   const [editingSalesMethodId, setEditingSalesMethodId] = useState<string>('');
   const [editingPrice, setEditingPrice] = useState<number>(0);
   const [editingCurrencyUnitId, setEditingCurrencyUnitId] = useState<string>('');
+  const [editingBranchId, setEditingBranchId] = useState<string>('');
+  const [selectedBranchTab, setSelectedBranchTab] = useState<string>(''); // branch id
+  const [isApplyingToAllBranches, setIsApplyingToAllBranches] = useState(false);
   const [formData, setFormData] = useState<CreateProductRequest>({
     name: '',
     description: '',
@@ -51,6 +54,11 @@ export const Products: React.FC = () => {
   const { data: companiesData } = useQuery({
     queryKey: ['companies'],
     queryFn: () => companyBranchApi.getCompanies(),
+  });
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => companyBranchApi.getBranches(),
   });
 
   const updateMutation = useMutation({
@@ -172,6 +180,26 @@ export const Products: React.FC = () => {
   const openPriceModal = async (product: Product) => {
     setSelectedProduct(product);
     setIsPriceModalOpen(true);
+    
+    // Ürünün şirket bilgisini al
+    const productCompanyId = typeof product.company === 'string' ? product.company : product.company?._id;
+    
+    // İlk şubeyi seç (varsa)
+    const filteredBranches = branchesData?.branches?.filter(b => {
+      const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+      return branchCompanyId === productCompanyId;
+    }) || [];
+    
+    if (filteredBranches.length > 0) {
+      setSelectedBranchTab(filteredBranches[0]._id);
+    } else {
+      setSelectedBranchTab('');
+    }
+    
+    setEditingSalesMethodId('');
+    setEditingBranchId('');
+    setIsApplyingToAllBranches(false);
+    
     try {
       const [pricesRes, methodsRes, unitsRes] = await Promise.all([
         categoryProductApi.getProductPrices(product._id),
@@ -182,7 +210,6 @@ export const Products: React.FC = () => {
       setSalesMethods(methodsRes.methods);
       setCurrencyUnits(unitsRes.units);
       setEditingPriceId('');
-      setEditingSalesMethodId('');
       setEditingPrice(0);
       setEditingCurrencyUnitId(unitsRes.units?.[0]?._id || '');
     } catch (e) {
@@ -190,40 +217,92 @@ export const Products: React.FC = () => {
     }
   };
 
-  const handleEditPrice = (salesMethodId: string) => {
+  const handleEditPrice = (salesMethodId: string, branchId?: string) => {
     setEditingSalesMethodId(salesMethodId);
-    const existing = productPrices.find(p => (typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id) === salesMethodId);
+    setEditingBranchId(branchId || '');
+    
+    // Şube seçimine göre fiyat bul
+    const existing = productPrices.find(p => {
+      const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
+      const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
+      
+      if (branchId) {
+        // Şube özel fiyat arıyoruz
+        return priceSalesMethodId === salesMethodId && priceBranchId === branchId;
+      } else {
+        // Genel fiyat arıyoruz (şube yok)
+        return priceSalesMethodId === salesMethodId && !priceBranchId;
+      }
+    });
+    
     if (existing) {
       setEditingPriceId(existing._id);
       setEditingPrice(existing.price);
       setEditingCurrencyUnitId(typeof existing.currencyUnit === 'string' ? existing.currencyUnit : existing.currencyUnit?._id || '');
+      const existingBranchId = typeof existing.branch === 'string' ? existing.branch : existing.branch?._id || '';
+      setEditingBranchId(existingBranchId);
     } else {
       setEditingPriceId('');
       setEditingPrice(0);
       setEditingCurrencyUnitId(currencyUnitsData?.units?.[0]?._id || '');
+      setEditingBranchId(branchId || '');
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSalesMethodId('');
+    setEditingPriceId('');
+    setEditingBranchId('');
+    setEditingPrice(0);
+    setEditingCurrencyUnitId(currencyUnitsData?.units?.[0]?._id || '');
+    setIsApplyingToAllBranches(false);
   };
 
   const handleSavePrice = async () => {
     if (!selectedProduct || !editingSalesMethodId || editingPrice <= 0 || !editingCurrencyUnitId) return;
+    
     try {
-      if (editingPriceId) {
-        // Backend update şeması tutarsız; güvenli yol: mevcut kaydı sil ve yeniden oluştur
-        await categoryProductApi.deleteProductPrice(editingPriceId);
+      // Ürünün şirket bilgisini al
+      const productCompanyId = typeof selectedProduct.company === 'string' ? selectedProduct.company : selectedProduct.company?._id;
+      
+      // Şirkete ait şubeleri al
+      const companyBranches = branchesData?.branches?.filter(b => {
+        const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+        return branchCompanyId === productCompanyId;
+      }) || [];
+      
+      // Uygulanacak şubeler
+      const branchesToApply = isApplyingToAllBranches 
+        ? companyBranches.map(b => b._id)
+        : (editingBranchId ? [editingBranchId] : []);
+      
+      // Her şube için fiyat kaydet
+      for (const branchId of branchesToApply) {
+        // Önce mevcut fiyatı kontrol et ve sil
+        const existingPrice = productPrices.find(p => {
+          const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
+          const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
+          return priceSalesMethodId === editingSalesMethodId && priceBranchId === branchId;
+        });
+        
+        if (existingPrice) {
+          await categoryProductApi.deleteProductPrice(existingPrice._id);
+        }
+        
+        // Yeni fiyatı ekle
+        await categoryProductApi.createProductPrice(selectedProduct._id, {
+          salesMethod: editingSalesMethodId,
+          price: editingPrice,
+          currencyUnit: editingCurrencyUnitId,
+          branch: branchId,
+        });
       }
-      await categoryProductApi.createProductPrice(selectedProduct._id, {
-        salesMethod: editingSalesMethodId,
-        price: editingPrice,
-        currencyUnit: editingCurrencyUnitId,
-      });
+      
       // Yeniden yükle
       const pricesRes = await categoryProductApi.getProductPrices(selectedProduct._id);
       setProductPrices(pricesRes.prices);
       // Reset
-      setEditingPriceId('');
-      setEditingSalesMethodId('');
-      setEditingPrice(0);
-      setEditingCurrencyUnitId(currencyUnits?.[0]?._id || '');
+      handleCancelEdit();
     } catch (e) {
       console.error('Fiyat kaydedilemedi:', e);
     }
@@ -558,9 +637,52 @@ export const Products: React.FC = () => {
               <div className="space-y-4">
                 <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md p-4">
                   <p className="text-sm text-blue-800 dark:text-blue-400">
-                    Satış yöntemlerine göre fiyat belirleyin. Mevcut fiyatlar listelenir, yeni fiyat ekleyebilir veya düzenleyebilirsiniz.
+                    Satış yöntemlerine göre şubelere özel fiyat belirleyin. Fiyat eklerken diğer şubelere de uygulayabilirsiniz.
                   </p>
                 </div>
+
+                {/* Şube Tabları - Sadece ürünün şirketine ait şubeler */}
+                {(() => {
+                  const productCompanyId = typeof selectedProduct.company === 'string' 
+                    ? selectedProduct.company 
+                    : selectedProduct.company?._id;
+                  
+                  const filteredBranches = branchesData?.branches?.filter(b => {
+                    const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+                    return branchCompanyId === productCompanyId;
+                  }) || [];
+                  
+                  if (filteredBranches.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        Bu şirkete ait şube bulunamadı.
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex space-x-8 overflow-x-auto">
+                        {filteredBranches.map((branch) => (
+                          <button
+                            key={branch._id}
+                            onClick={() => {
+                              setSelectedBranchTab(branch._id);
+                              handleCancelEdit();
+                            }}
+                            className={`py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                              selectedBranchTab === branch._id
+                                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                            }`}
+                          >
+                            {branch.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -574,67 +696,137 @@ export const Products: React.FC = () => {
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {salesMethods.map((method) => {
-                        const existing = productPrices.find(p => (typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id) === method._id);
+                        // Seçili şubeye göre fiyat bul (sadece şube fiyatları)
+                        const existing = productPrices.find(p => {
+                          const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
+                          const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
+                          
+                          // Sadece şube özel fiyatları göster
+                          return priceSalesMethodId === method._id && priceBranchId === selectedBranchTab;
+                        });
+                        
+                        const isEditing = editingSalesMethodId === method._id && 
+                          selectedBranchTab && editingBranchId === selectedBranchTab;
+                        
                         return (
                           <tr key={method._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">{method.name}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {existing ? (<span className="text-sm text-gray-900 dark:text-white">{existing.price}</span>) : (<span className="text-sm text-gray-500 dark:text-gray-400">Fiyat yok</span>)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {existing ? (
-                                <span className="text-sm text-gray-900 dark:text-white">{typeof existing.currencyUnit === 'string' ? existing.currencyUnit : (existing.currencyUnit?.name || '-')}</span>
-                              ) : (
-                                <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <Button size="sm" variant="outline" onClick={() => handleEditPrice(method._id)}>
-                                {existing ? 'Düzenle' : 'Fiyat Ekle'}
-                              </Button>
-                            </td>
+                            {isEditing ? (
+                              <>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <Input
+                                    type="number"
+                                    value={editingPrice}
+                                    onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
+                                    placeholder="Fiyat giriniz"
+                                    min="0"
+                                    step="0.01"
+                                    className="w-32"
+                                  />
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <select
+                                    className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    value={editingCurrencyUnitId}
+                                    onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
+                                    required
+                                  >
+                                    {currencyUnits.map((u) => (
+                                      <option key={u._id} value={u._id}>{u.name}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  <div className="flex flex-col space-y-2">
+                                    <div className="flex space-x-2">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        onClick={handleCancelEdit}
+                                      >
+                                        İptal
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        onClick={handleSavePrice} 
+                                        disabled={editingPrice <= 0 || !editingCurrencyUnitId}
+                                      >
+                                        Kaydet
+                                      </Button>
+                                    </div>
+                                    {(() => {
+                                      const productCompanyId = typeof selectedProduct.company === 'string' 
+                                        ? selectedProduct.company 
+                                        : selectedProduct.company?._id;
+                                      
+                                      const filteredBranches = branchesData?.branches?.filter(b => {
+                                        const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+                                        return branchCompanyId === productCompanyId && b._id !== selectedBranchTab;
+                                      }) || [];
+                                      
+                                      if (filteredBranches.length > 0) {
+                                        return (
+                                          <div className="flex items-center space-x-2">
+                                            <input
+                                              type="checkbox"
+                                              id="applyToAllBranches"
+                                              checked={isApplyingToAllBranches}
+                                              onChange={(e) => setIsApplyingToAllBranches(e.target.checked)}
+                                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                                            />
+                                            <label 
+                                              htmlFor="applyToAllBranches" 
+                                              className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer"
+                                            >
+                                              Diğer şubelere de uygula ({filteredBranches.length} şube)
+                                            </label>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {existing ? (
+                                    <span className="text-sm text-gray-900 dark:text-white">{existing.price}</span>
+                                  ) : (
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">Fiyat yok</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {existing ? (
+                                    <span className="text-sm text-gray-900 dark:text-white">
+                                      {typeof existing.currencyUnit === 'string' ? existing.currencyUnit : (existing.currencyUnit?.name || '-')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  {selectedBranchTab && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      onClick={() => handleEditPrice(method._id, selectedBranchTab)}
+                                    >
+                                      {existing ? 'Düzenle' : 'Fiyat Ekle'}
+                                    </Button>
+                                  )}
+                                </td>
+                              </>
+                            )}
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
                 </div>
-
-                {/* Inline editor */}
-                {editingSalesMethodId && (
-                  <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fiyat</label>
-                      <Input
-                        type="number"
-                        value={editingPrice}
-                        onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
-                        placeholder="Fiyat giriniz"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Para Birimi</label>
-                      <select
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                        value={editingCurrencyUnitId}
-                        onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
-                        required
-                      >
-                        {currencyUnits.map((u) => (
-                          <option key={u._id} value={u._id}>{u.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex items-end justify-end space-x-3">
-                      <Button variant="outline" onClick={() => { setEditingSalesMethodId(''); setEditingPriceId(''); }}>İptal</Button>
-                      <Button onClick={handleSavePrice} disabled={editingPrice <= 0 || !editingCurrencyUnitId}>Kaydet</Button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
