@@ -353,10 +353,16 @@ export const MenuDetail: React.FC = () => {
             Şirket: {menu.company ? (typeof menu.company === 'string' ? menu.company : menu.company.name) : '-'}
           </p>
         </div>
-        <Button onClick={() => navigate('/menus')} variant="outline">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Geri Dön
-        </Button>
+        <div className="flex space-x-3">
+          <Button onClick={() => navigate(`/menu-view/${id}`)} variant="outline">
+            <Eye className="h-4 w-4 mr-2" />
+            Garson Görünümü
+          </Button>
+          <Button onClick={() => navigate('/menus')} variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Geri Dön
+          </Button>
+        </div>
       </div>
 
       {/* Tab Navigation */}

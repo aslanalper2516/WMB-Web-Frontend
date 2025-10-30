@@ -13,6 +13,7 @@ import { Products } from './pages/products/Products';
 import { Kitchens } from './pages/kitchens/Kitchens';
 import { Menus } from './pages/menus/Menus';
 import { MenuDetail } from './pages/menus/MenuDetail';
+import { MenuView } from './pages/menus/MenuView';
 import { Units } from './pages/units/Units';
 import { SalesMethods } from './pages/salesMethods/SalesMethods';
 import { Roles } from './pages/roles/Roles';
@@ -152,6 +153,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <MenuDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/menu-view/:id"
+          element={
+            <ProtectedRoute>
+              <MenuView />
             </ProtectedRoute>
           }
         />
