@@ -178,6 +178,24 @@ export const MenuDetail: React.FC = () => {
     e.preventDefault();
     if (!selectedCategory || selectedProductsForCategory.length === 0) return;
     
+    // Ürünlerin menüde başka kategoride olup olmadığını kontrol et
+    const duplicateProducts: string[] = [];
+    selectedProductsForCategory.forEach(productId => {
+      const existsInMenu = menuProducts.some(mp => {
+        const mpProductId = typeof mp.product === 'string' ? mp.product : mp.product?._id;
+        return mpProductId === productId;
+      });
+      if (existsInMenu) {
+        const productName = availableProducts.find(p => p._id === productId)?.name || productId;
+        duplicateProducts.push(productName);
+      }
+    });
+    
+    if (duplicateProducts.length > 0) {
+      alert(`Aşağıdaki ürünler zaten menünün başka bir kategorisinde bulunuyor:\n\n${duplicateProducts.join('\n')}\n\nBir ürün sadece bir kategoriye dahil olabilir.`);
+      return;
+    }
+    
     setIsAddingProducts(true);
     
     try {
@@ -332,10 +350,19 @@ export const MenuDetail: React.FC = () => {
     return subCategories;
   };
 
-  // Menüde olmayan kategorileri filtrele
-  const availableCategories = categories.filter(
-    cat => !menuCategories.some(mc => (typeof mc.category === 'string' ? mc.category === cat._id : mc.category._id === cat._id))
-  );
+  // Menüde olmayan kategorileri filtrele (ve menü şirketiyle uyumlu olanlar)
+  const menuCompanyId = typeof menu.company === 'string' ? menu.company : menu.company?._id;
+  const availableCategories = categories.filter(cat => {
+    // Menüde zaten var mı?
+    const isInMenu = menuCategories.some(mc => 
+      (typeof mc.category === 'string' ? mc.category === cat._id : mc.category._id === cat._id)
+    );
+    if (isInMenu) return false;
+    
+    // Kategori aynı şirkete mi ait?
+    const catCompanyId = typeof cat.company === 'string' ? cat.company : cat.company?._id;
+    return catCompanyId === menuCompanyId;
+  });
 
   // Menüde olmayan şubeleri filtrele
   const availableBranches = branches.filter(
@@ -521,6 +548,27 @@ export const MenuDetail: React.FC = () => {
                     key: 'order',
                     title: 'Sıra',
                     render: (_value: any, mc: any) => mc.order || '-'
+                  },
+                  {
+                    key: 'companyMatch',
+                    title: 'Şirket Uyumu',
+                    render: (_value: any, mc: any) => {
+                      const category = mc.category;
+                      if (!category || typeof category === 'string') return '-';
+                      
+                      const catCompanyId = typeof category.company === 'string' ? category.company : category.company?._id;
+                      const isMatching = catCompanyId === menuCompanyId;
+                      
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          isMatching 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {isMatching ? '✓ Uyumlu' : '⚠ Farklı Şirket'}
+                        </span>
+                      );
+                    }
                   },
                   {
                     key: 'isActive',

@@ -63,6 +63,21 @@ export const Kitchens: React.FC = () => {
     },
   });
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      categoryProductApi.updateKitchen(id, { isActive }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kitchens'] });
+    },
+  });
+
+  const handleToggleActive = (kitchen: Kitchen) => {
+    toggleActiveMutation.mutate({
+      id: kitchen._id,
+      isActive: !kitchen.isActive,
+    });
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
@@ -110,6 +125,29 @@ export const Kitchens: React.FC = () => {
         if (typeof value === 'string') return value;
         return value?.name || 'N/A';
       }
+    },
+    {
+      key: 'isActive' as keyof Kitchen,
+      title: 'Durum',
+      render: (_value: any, item: Kitchen) => (
+        <button
+          onClick={() => handleToggleActive(item)}
+          disabled={toggleActiveMutation.isPending}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+            item.isActive ? 'bg-green-500' : 'bg-gray-300'
+          } ${toggleActiveMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          title={item.isActive ? 'Aktif - Pasif yapmak için tıklayın' : 'Pasif - Aktif yapmak için tıklayın'}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              item.isActive ? 'translate-x-6' : 'translate-x-1'
+            }`}
+          />
+          <span className="sr-only">
+            {item.isActive ? 'Deaktif et' : 'Aktif et'}
+          </span>
+        </button>
+      ),
     },
     {
       key: 'createdAt' as keyof Kitchen,

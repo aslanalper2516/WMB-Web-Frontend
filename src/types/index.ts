@@ -205,12 +205,14 @@ export interface CreateProductRequest {
   description?: string;
   defaultSalesMethod: string;
   company: string;
+  isActive?: boolean;
 }
 
 export interface CreateKitchenRequest {
   name: string;
   company: string;
   branch: string;
+  isActive?: boolean;
 }
 
 export interface CreateProductIngredientRequest {

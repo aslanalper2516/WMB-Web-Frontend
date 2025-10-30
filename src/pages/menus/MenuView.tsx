@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { menuApi } from '../../api/menu';
 import { categoryProductApi } from '../../api/categoryProduct';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import type { MenuCategory, MenuProduct, Category, Product } from '../../types';
 
 export const MenuView: React.FC = () => {
@@ -143,6 +143,7 @@ export const MenuView: React.FC = () => {
     return category && category.isActive;
   });
 
+
   // Seçili kategorinin ürünlerini getir (alt kategoriler dahil)
   const getProductsForCategory = (selectedCategoryId: string): MenuProduct[] => {
     return menuProducts.filter(mp => {
@@ -219,44 +220,38 @@ export const MenuView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white shadow-lg sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{menu.name}</h1>
-              {menu.description && (
-                <p className="text-gray-600 mt-1">{menu.description}</p>
-              )}
-            </div>
+            <h1 className="text-2xl font-semibold text-gray-800">{menu.name}</h1>
             <button
               onClick={() => navigate(`/menus/${id}`)}
-              className="flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
-              <span className="font-medium">Geri</span>
+              <span className="text-sm font-medium">Geri</span>
             </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Kategoriler Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-md p-6 sticky top-28">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Kategoriler</h2>
-              <div className="space-y-2">
+            <div className="bg-white border border-gray-200 rounded-lg p-4 sticky top-24">
+              <div className="space-y-1">
                 <button
                   onClick={() => setSelectedCategoryId(null)}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                     selectedCategoryId === null
-                      ? 'bg-blue-500 text-white shadow-md'
-                      : 'bg-slate-50 text-gray-700 hover:bg-slate-100'
+                      ? 'bg-gray-900 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <div className="font-medium">Tümü</div>
+                  Tümü
                 </button>
                 {activeCategories.map((mc) => {
                   const category = mc.category as Category;
@@ -264,25 +259,21 @@ export const MenuView: React.FC = () => {
                   
                   const depth = mc.depth || 0;
                   const isSelected = selectedCategoryId === category._id;
+                  const isParent = depth === 0;
                   
                   return (
                     <button
                       key={mc._id}
                       onClick={() => setSelectedCategoryId(category._id)}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                         isSelected
-                          ? 'bg-blue-500 text-white shadow-md'
-                          : 'bg-slate-50 text-gray-700 hover:bg-slate-100'
-                      }`}
-                      style={{ paddingLeft: `${1 + depth * 1}rem` }}
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      } ${isParent ? 'font-semibold' : 'font-normal'}`}
+                      style={{ paddingLeft: `${0.75 + depth * 1}rem` }}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">
-                          {depth > 0 && '└─ '}
-                          {category.name}
-                        </span>
-                        {!isSelected && <ChevronRight className="h-4 w-4" />}
-                      </div>
+                      {depth > 0 && '└─ '}
+                      {category.name}
                     </button>
                   );
                 })}
@@ -290,40 +281,41 @@ export const MenuView: React.FC = () => {
             </div>
           </div>
 
-          {/* Ürünler Grid */}
-          <div className="lg:col-span-3">
+          {/* Ürünler Liste */}
+          <div className="lg:col-span-4">
             {selectedCategoryId === null ? (
               // Tüm ürünler (kategori gruplaması olmadan)
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-3">
-                  Tüm Ürünler
-                </h3>
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="text-center py-10 border-b border-gray-200 bg-gray-50">
+                  <h3 className="text-4xl font-light text-gray-800 tracking-widest mb-2">
+                    Tüm Ürünler
+                  </h3>
+                  <p className="text-sm text-gray-600 font-light">Menümüzdeki tüm ürünler</p>
+                </div>
                 {getAllProducts().length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 text-lg">Bu menüde henüz ürün bulunmuyor.</p>
+                  <div className="text-center py-16">
+                    <p className="text-gray-500">Bu menüde henüz ürün bulunmuyor.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="divide-y divide-gray-200">
                     {getAllProducts().map((mp) => {
                       const product = mp.product as Product;
                       if (!product) return null;
                       
                       return (
-                        <div
-                          key={mp._id}
-                          className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-5 hover:shadow-lg transition-all border border-slate-200"
-                        >
-                          <h4 className="text-lg font-bold text-gray-900 mb-2">
-                            {product.name || 'İsimsiz Ürün'}
-                          </h4>
-                          {product.description && (
-                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                              {product.description}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between mt-auto">
-                            <span className="text-xs text-gray-500">Fiyat</span>
-                            <div className="text-xl font-bold text-blue-600">
+                        <div key={mp._id} className="px-8 py-5 hover:bg-gray-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="text-lg font-medium text-gray-900 mb-1">
+                                {product.name || 'İsimsiz Ürün'}
+                              </h4>
+                              {product.description && (
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                  {product.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-lg font-semibold text-gray-900 ml-4 whitespace-nowrap">
                               {getProductPrice(product._id)}
                             </div>
                           </div>
@@ -335,44 +327,43 @@ export const MenuView: React.FC = () => {
               </div>
             ) : (
               // Seçili kategori ürünleri
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-3">
-                  {activeCategories.find(mc => {
-                    const cat = mc.category as Category;
-                    return cat && cat._id === selectedCategoryId;
-                  })?.category && (
-                    (activeCategories.find(mc => {
-                      const cat = mc.category as Category;
-                      return cat && cat._id === selectedCategoryId;
-                    })?.category as Category).name
-                  )}
-                </h3>
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <div className="text-center py-10 border-b border-gray-200 bg-gray-50">
+                  <h3 className="text-4xl font-light text-gray-800 tracking-widest mb-2">
+                    {(() => {
+                      const selectedMc = activeCategories.find(mc => {
+                        const cat = mc.category as Category;
+                        return cat && cat._id === selectedCategoryId;
+                      });
+                      return selectedMc ? (selectedMc.category as Category).name : '';
+                    })()}
+                  </h3>
+                  <p className="text-sm text-gray-600 font-light">Özenle seçilmiş ürünler</p>
+                </div>
                 {getProductsForCategory(selectedCategoryId).length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-gray-500 text-lg">Bu kategoride henüz ürün bulunmuyor.</p>
+                  <div className="text-center py-16">
+                    <p className="text-gray-500">Bu kategoride henüz ürün bulunmuyor.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="divide-y divide-gray-200">
                     {getProductsForCategory(selectedCategoryId).map((mp) => {
                       const product = mp.product as Product;
                       if (!product) return null;
                       
                       return (
-                        <div
-                          key={mp._id}
-                          className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-5 hover:shadow-lg transition-all border border-slate-200"
-                        >
-                          <h4 className="text-lg font-bold text-gray-900 mb-2">
-                            {product.name || 'İsimsiz Ürün'}
-                          </h4>
-                          {product.description && (
-                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                              {product.description}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between mt-auto">
-                            <span className="text-xs text-gray-500">Fiyat</span>
-                            <div className="text-xl font-bold text-blue-600">
+                        <div key={mp._id} className="px-8 py-5 hover:bg-gray-50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="text-lg font-medium text-gray-900 mb-1">
+                                {product.name || 'İsimsiz Ürün'}
+                              </h4>
+                              {product.description && (
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                  {product.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-lg font-semibold text-gray-900 ml-4 whitespace-nowrap">
                               {getProductPrice(product._id)}
                             </div>
                           </div>
