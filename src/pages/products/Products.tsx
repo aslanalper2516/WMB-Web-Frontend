@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
-import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, DollarSign, AlertTriangle } from 'lucide-react';
 import type { Product, CreateProductRequest, ProductPrice, SalesMethod, CurrencyUnit } from '../../types';
 
 export const Products: React.FC = () => {
@@ -24,15 +24,13 @@ export const Products: React.FC = () => {
   const [editingBranchId, setEditingBranchId] = useState<string>('');
   const [selectedBranchTab, setSelectedBranchTab] = useState<string>(''); // branch id
   const [isApplyingToAllBranches, setIsApplyingToAllBranches] = useState(false);
+  const [productPriceStatus, setProductPriceStatus] = useState<Record<string, boolean>>({}); // productId -> hasPrice
   const [formData, setFormData] = useState<CreateProductRequest>({
     name: '',
     description: '',
     defaultSalesMethod: '',
     company: '',
   });
-  
-  const [initialPrice, setInitialPrice] = useState<string>('');
-  const [initialCurrencyUnit, setInitialCurrencyUnit] = useState<string>('');
 
   const queryClient = useQueryClient();
 
@@ -104,40 +102,81 @@ export const Products: React.FC = () => {
     }
   }, [salesMethodsData, isCreateModalOpen, formData.defaultSalesMethod]);
 
+  // Sayfa yüklendiğinde tüm ürünlerin fiyat durumlarını kontrol et
   React.useEffect(() => {
-    if (currencyUnitsData?.units && !initialCurrencyUnit && isCreateModalOpen) {
-      const tl = currencyUnitsData.units.find((cu: CurrencyUnit) => cu.name === 'TL' || cu.name === '₺');
-      if (tl) {
-        setInitialCurrencyUnit(tl._id);
-      }
-    }
-  }, [currencyUnitsData, isCreateModalOpen, initialCurrencyUnit]);
+    const checkAllProductPrices = async () => {
+      if (!productsData?.products || !salesMethodsData?.methods) return;
+      
+      const products = productsData.products;
+      const salesMethods = salesMethodsData.methods;
+      
+      // Tüm ürünlerin fiyatlarını paralel olarak kontrol et
+      const priceCheckPromises = products.map(async (product) => {
+        try {
+          const pricesRes = await categoryProductApi.getProductPrices(product._id);
+          const prices = pricesRes.prices || [];
+          
+          // Tüm satış yöntemleri için fiyat var mı kontrol et
+          const hasAllPrices = salesMethods.every((method) => {
+            return prices.some((price) => {
+              const priceSalesMethodId = typeof price.salesMethod === 'string' 
+                ? price.salesMethod 
+                : price.salesMethod?._id;
+              return priceSalesMethodId === method._id;
+            });
+          });
+          
+          return { productId: product._id, hasAllPrices };
+        } catch (error) {
+          console.error(`Ürün ${product._id} fiyat kontrolü başarısız:`, error);
+          // Hata durumunda fiyat yok kabul et
+          return { productId: product._id, hasAllPrices: false };
+        }
+      });
+      
+      // Tüm kontroller tamamlandığında durumu güncelle
+      const results = await Promise.all(priceCheckPromises);
+      const newPriceStatus: Record<string, boolean> = {};
+      
+      results.forEach(({ productId, hasAllPrices }) => {
+        newPriceStatus[productId] = hasAllPrices;
+      });
+      
+      setProductPriceStatus(prev => ({
+        ...prev,
+        ...newPriceStatus
+      }));
+    };
+    
+    checkAllProductPrices();
+  }, [productsData?.products, salesMethodsData?.methods]);
+
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Fiyat kontrolü
-    if (!initialPrice || parseFloat(initialPrice) <= 0) {
-      alert('Lütfen geçerli bir fiyat girin!');
+    if (!formData.defaultSalesMethod) {
+      alert('Varsayılan satış yöntemi seçilmelidir!');
       return;
     }
     
-    if (!initialCurrencyUnit) {
-      alert('Lütfen para birimi seçin!');
+    if (!formData.company) {
+      alert('Şirket seçilmelidir!');
       return;
     }
     
     try {
-      // Önce ürünü oluştur
+      // Ürünü oluştur (isActive default true, backend'de otomatik set edilir)
+      // Fiyatlar daha sonra fiyat yönetimi modal'ından eklenebilir
       const response = await categoryProductApi.createProduct(formData);
-      const newProductId = response.product._id;
       
-      // Sonra otomatik olarak fiyat ekle
-      await categoryProductApi.createProductPrice(newProductId, {
-        salesMethod: formData.defaultSalesMethod,
-        price: parseFloat(initialPrice),
-        currencyUnit: initialCurrencyUnit
-      });
+      // Yeni oluşturulan ürün için fiyat uyarısı ekle
+      if (response.product?._id) {
+        setProductPriceStatus(prev => ({
+          ...prev,
+          [response.product._id]: false // Yeni ürün için fiyat yok
+        }));
+      }
       
       // Cache'i güncelle
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -145,11 +184,50 @@ export const Products: React.FC = () => {
       // Formu temizle ve kapat
       setIsCreateModalOpen(false);
       setFormData({ name: '', description: '', defaultSalesMethod: '', company: '' });
-      setInitialPrice('');
-      setInitialCurrencyUnit('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Ürün oluşturma hatası:', error);
-      alert('Ürün oluşturulurken bir hata oluştu!');
+      
+      // Detaylı hata mesajı göster
+      let errorMessage = 'Ürün oluşturulurken bir hata oluştu!';
+      
+      if (error?.response?.data?.message) {
+        errorMessage = `Hata: ${error.response.data.message}`;
+      } else if (error?.response?.data?.error) {
+        errorMessage = `Hata: ${error.response.data.error}`;
+      } else if (error?.message) {
+        errorMessage = `Hata: ${error.message}`;
+      }
+      
+      console.error('Detaylı hata bilgisi:', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        requestUrl: error?.config?.url,
+        requestData: error?.config?.data,
+        requestMethod: error?.config?.method,
+      });
+      
+      // Backend'den gelen hata mesajını daha detaylı göster
+      if (error?.response?.data) {
+        console.error('Backend hata detayı:', JSON.stringify(error.response.data, null, 2));
+        
+        // Backend'den gelen spesifik hata mesajını göster
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = typeof error.response.data.error === 'string' 
+            ? error.response.data.error 
+            : JSON.stringify(error.response.data.error);
+        } else if (error.response.data.errors) {
+          // Validation hataları varsa
+          const validationErrors = Object.entries(error.response.data.errors)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+          errorMessage = `Validasyon hatası: ${validationErrors}`;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -212,8 +290,36 @@ export const Products: React.FC = () => {
       setEditingPriceId('');
       setEditingPrice(0);
       setEditingCurrencyUnitId(unitsRes.units?.[0]?._id || '');
+      
+      // Ürünün fiyat durumunu güncelle - tüm satış yöntemleri için fiyat var mı kontrol et
+      if (salesMethodsData?.methods) {
+        const hasAllPrices = salesMethodsData.methods.every((method) => {
+          return pricesRes.prices.some((price) => {
+            const priceSalesMethodId = typeof price.salesMethod === 'string' 
+              ? price.salesMethod 
+              : price.salesMethod?._id;
+            return priceSalesMethodId === method._id;
+          });
+        });
+        
+        setProductPriceStatus(prev => ({
+          ...prev,
+          [product._id]: hasAllPrices
+        }));
+      } else {
+        // Satış yöntemleri yüklenmemişse sadece fiyat var mı kontrol et
+        setProductPriceStatus(prev => ({
+          ...prev,
+          [product._id]: pricesRes.prices && pricesRes.prices.length > 0
+        }));
+      }
     } catch (e) {
       console.error('Fiyat verileri yüklenemedi:', e);
+      // Hata durumunda da fiyat olmadığını işaretle
+      setProductPriceStatus(prev => ({
+        ...prev,
+        [product._id]: false
+      }));
     }
   };
 
@@ -301,6 +407,30 @@ export const Products: React.FC = () => {
       // Yeniden yükle
       const pricesRes = await categoryProductApi.getProductPrices(selectedProduct._id);
       setProductPrices(pricesRes.prices);
+      
+      // Fiyat durumunu güncelle - tüm satış yöntemleri için fiyat var mı kontrol et
+      if (salesMethodsData?.methods) {
+        const hasAllPrices = salesMethodsData.methods.every((method) => {
+          return pricesRes.prices.some((price) => {
+            const priceSalesMethodId = typeof price.salesMethod === 'string' 
+              ? price.salesMethod 
+              : price.salesMethod?._id;
+            return priceSalesMethodId === method._id;
+          });
+        });
+        
+        setProductPriceStatus(prev => ({
+          ...prev,
+          [selectedProduct._id]: hasAllPrices
+        }));
+      } else {
+        // Satış yöntemleri yüklenmemişse sadece fiyat var mı kontrol et
+        setProductPriceStatus(prev => ({
+          ...prev,
+          [selectedProduct._id]: pricesRes.prices && pricesRes.prices.length > 0
+        }));
+      }
+      
       // Reset
       handleCancelEdit();
     } catch (e) {
@@ -371,32 +501,40 @@ export const Products: React.FC = () => {
     {
       key: 'actions',
       title: 'İşlemler',
-      render: (_value: any, item: Product) => (
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openPriceModal(item)}
-            title="Fiyatları Düzenle"
-          >
-            <DollarSign className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEdit(item)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => handleDelete(item._id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
+      render: (_value: any, item: Product) => {
+        const hasPrice = productPriceStatus[item._id] ?? null; // null = henüz kontrol edilmedi
+        
+        return (
+          <div className="flex space-x-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openPriceModal(item)}
+              title={hasPrice === false ? "Fiyatları Düzenle (Fiyat girilmemiş)" : "Fiyatları Düzenle"}
+              className="relative"
+            >
+              <DollarSign className="h-4 w-4" />
+              {hasPrice === false && (
+                <AlertTriangle className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500 fill-yellow-500" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleEdit(item)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => handleDelete(item._id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -475,9 +613,8 @@ export const Products: React.FC = () => {
                     name="defaultSalesMethod"
                     value={formData.defaultSalesMethod}
                     onChange={(e) => setFormData({ ...formData, defaultSalesMethod: e.target.value })}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     required
-                    disabled
                   >
                     <option value="">Satış Yöntemi Seçin</option>
                     {salesMethodsData?.methods.map((method) => (
@@ -487,37 +624,6 @@ export const Products: React.FC = () => {
                     ))}
                   </select>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Varsayılan olarak "Şube Satış" seçilidir</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Başlangıç Fiyatı *</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    name="initialPrice"
-                    value={initialPrice}
-                    onChange={(e) => setInitialPrice(e.target.value)}
-                    placeholder="0.00"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ürün oluşturulurken varsayılan satış yöntemi için fiyat girilmesi zorunludur</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Para Birimi</label>
-                  <select
-                    name="initialCurrencyUnit"
-                    value={initialCurrencyUnit}
-                    onChange={(e) => setInitialCurrencyUnit(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    required
-                  >
-                    <option value="">Para Birimi Seçin</option>
-                    {currencyUnitsData?.units.map((unit: CurrencyUnit) => (
-                      <option key={unit._id} value={unit._id}>
-                        {unit.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
                 <div className="flex justify-end space-x-3">
                   <Button
