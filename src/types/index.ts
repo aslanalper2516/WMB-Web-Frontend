@@ -141,6 +141,7 @@ export interface CreateBranchRequest {
 export interface Category {
   _id: string;
   name: string;
+  company?: string | Company;
   parent?: string | Category;
   description?: string;
   isActive: boolean;
@@ -194,6 +195,7 @@ export interface ProductPrice {
 
 export interface CreateCategoryRequest {
   name: string;
+  company: string;
   parent?: string;
   description?: string;
 }

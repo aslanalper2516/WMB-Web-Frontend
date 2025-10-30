@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoryProductApi } from '../../api/categoryProduct';
+import { companyBranchApi } from '../../api/companyBranch';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
 import { Plus, Edit, Trash2 } from 'lucide-react';
-import type { Category, CreateCategoryRequest } from '../../types';
+import type { Category, CreateCategoryRequest, Company } from '../../types';
 
 export const Categories: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -14,6 +15,7 @@ export const Categories: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState<CreateCategoryRequest>({
     name: '',
+    company: '',
     description: '',
   });
 
@@ -24,12 +26,17 @@ export const Categories: React.FC = () => {
     queryFn: () => categoryProductApi.getCategories(),
   });
 
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies'],
+    queryFn: () => companyBranchApi.getCompanies(),
+  });
+
   const createMutation = useMutation({
     mutationFn: categoryProductApi.createCategory,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsCreateModalOpen(false);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', company: '', description: '' });
     },
   });
 
@@ -40,7 +47,7 @@ export const Categories: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsEditModalOpen(false);
       setSelectedCategory(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', company: '', description: '' });
     },
   });
 
@@ -88,18 +95,30 @@ export const Categories: React.FC = () => {
     setSelectedCategory(category);
     setFormData({
       name: category.name,
+      company: typeof category.company === 'string' ? category.company : category.company?._id || '',
       description: category.description || '',
     });
     setIsEditModalOpen(true);
   };
 
   const categories = categoriesData?.categories || [];
+  const companies = companiesData?.companies || [];
 
   const columns = [
     {
       key: 'name',
       title: 'Ad',
       render: (_value: any, item: Category) => item.name,
+    },
+    {
+      key: 'company',
+      title: 'Şirket',
+      render: (_value: any, item: Category) => {
+        if (!item.company) return '-';
+        return typeof item.company === 'string' 
+          ? item.company 
+          : item.company.name;
+      },
     },
     {
       key: 'description',
@@ -201,6 +220,23 @@ export const Categories: React.FC = () => {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <select
+                    name="company"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  >
+                    <option value="">Şirket Seçin</option>
+                    {companies.map((company) => (
+                      <option key={company._id} value={company._id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700">Açıklama</label>
                   <textarea
                     name="description"
@@ -246,6 +282,23 @@ export const Categories: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Şirket</label>
+                  <select
+                    name="company"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    required
+                  >
+                    <option value="">Şirket Seçin</option>
+                    {companies.map((company) => (
+                      <option key={company._id} value={company._id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Açıklama</label>
