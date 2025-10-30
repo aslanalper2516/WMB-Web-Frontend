@@ -33,9 +33,9 @@ const navigation = [
 export const Sidebar: React.FC = () => {
   return (
     <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
-      <div className="flex flex-col flex-grow pt-5 bg-gray-50 overflow-y-auto">
+      <div className="flex flex-col flex-grow pt-5 bg-gray-50 dark:bg-gray-800 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
         <div className="flex items-center flex-shrink-0 px-4">
-          <h2 className="text-lg font-semibold text-gray-900">Menü</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Menü</h2>
         </div>
         <div className="mt-5 flex-grow flex flex-col">
           <nav className="flex-1 px-2 space-y-1">
@@ -48,8 +48,8 @@ export const Sidebar: React.FC = () => {
                   className={({ isActive }) =>
                     `group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
                       isActive
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                     }`
                   }
                 >

@@ -299,15 +299,15 @@ export const Companies: React.FC = () => {
   ];
 
   if (isLoading) {
-    return <div>Yükleniyor...</div>;
+    return <div className="text-gray-900 dark:text-gray-100">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Şirketler</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Şirketler</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Şirket bilgilerini yönetin
           </p>
         </div>
@@ -328,12 +328,12 @@ export const Companies: React.FC = () => {
 
       {/* Create Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-600 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Yeni Şirket</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Yeni Şirket</h3>
               {errorMessage && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300 text-sm">
                   {errorMessage}
                 </div>
               )}
@@ -363,11 +363,11 @@ export const Companies: React.FC = () => {
                   />
                 </div>
                 
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Adres Bilgileri</h4>
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Adres Bilgileri</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         İl
                       </label>
                       <select
@@ -378,7 +378,7 @@ export const Companies: React.FC = () => {
                           setSelectedProvinceId(selectedProvince?.id || null);
                           setFormData({ ...formData, province: e.target.value, district: '', neighborhood: '', street: '' });
                         }}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                       >
                         <option value="">İl Seçin</option>
                         {provinces.map((province) => (
@@ -389,7 +389,7 @@ export const Companies: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         İlçe
                       </label>
                       <select
@@ -401,7 +401,7 @@ export const Companies: React.FC = () => {
                           setFormData({ ...formData, district: e.target.value, neighborhood: '', street: '' });
                         }}
                         disabled={!selectedProvinceId}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400"
                       >
                         <option value="">İlçe Seçin</option>
                         {districts.map((district) => (
@@ -414,7 +414,7 @@ export const Companies: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Mahalle
                       </label>
                       <select
@@ -422,7 +422,7 @@ export const Companies: React.FC = () => {
                         value={formData.neighborhood}
                         onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value, street: '' })}
                         disabled={!selectedDistrictId}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400"
                       >
                         <option value="">Mahalle Seçin</option>
                         {neighborhoods.map((neighborhood) => (
@@ -477,12 +477,12 @@ export const Companies: React.FC = () => {
 
       {/* Edit Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-600 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Şirket Düzenle</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Şirket Düzenle</h3>
               {errorMessage && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md text-red-700 dark:text-red-300 text-sm">
                   {errorMessage}
                 </div>
               )}
@@ -512,11 +512,11 @@ export const Companies: React.FC = () => {
                   />
                 </div>
                 
-                <div className="border-t pt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Adres Bilgileri</h4>
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Adres Bilgileri</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         İl
                       </label>
                       <select
@@ -528,7 +528,7 @@ export const Companies: React.FC = () => {
                           setFormData({ ...formData, province: e.target.value, district: '', neighborhood: '', street: '' });
                         }}
                         required
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                       >
                         <option value="">İl Seçin</option>
                         {provinces.map((province) => (
@@ -539,7 +539,7 @@ export const Companies: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         İlçe
                       </label>
                       <select
@@ -551,7 +551,7 @@ export const Companies: React.FC = () => {
                           setFormData({ ...formData, district: e.target.value, neighborhood: '', street: '' });
                         }}
                         disabled={!selectedProvinceId}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400"
                       >
                         <option value="">İlçe Seçin</option>
                         {districts.map((district) => (
@@ -564,7 +564,7 @@ export const Companies: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Mahalle
                       </label>
                       <select
@@ -572,7 +572,7 @@ export const Companies: React.FC = () => {
                         value={formData.neighborhood}
                         onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value, street: '' })}
                         disabled={!selectedDistrictId}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:text-gray-500 dark:disabled:text-gray-400"
                       >
                         <option value="">Mahalle Seçin</option>
                         {neighborhoods.map((neighborhood) => (
@@ -629,10 +629,10 @@ export const Companies: React.FC = () => {
 
       {/* Manager Modal */}
       {isManagerModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 dark:bg-gray-900 dark:bg-opacity-75 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-600 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Yönetici Ata: {selectedCompany?.name}
               </h3>
               <div className="space-y-4">
@@ -643,23 +643,23 @@ export const Companies: React.FC = () => {
                   const managerUser = usersData?.users.find(u => (u._id || u.id) === managerId);
                   
                   return (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
-                      <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                      <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
                         Mevcut Yönetici
                       </p>
                       <div className="flex items-start space-x-2">
                         <div className="flex-shrink-0 mt-0.5">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center">
                             <span className="text-white text-sm font-medium">
                               {managerUser?.name?.charAt(0).toUpperCase() || '?'}
                             </span>
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                             {managerUser?.name || 'Bilinmiyor'}
                           </p>
-                          <p className="text-xs text-gray-600 mt-0.5">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                             ✉️ {managerUser?.email || 'Email bulunamadı'}
                           </p>
                         </div>
@@ -669,7 +669,7 @@ export const Companies: React.FC = () => {
                 })()}
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Yeni Yönetici Seç
                   </label>
                   <select
@@ -678,7 +678,7 @@ export const Companies: React.FC = () => {
                       console.log('🎯 Selected manager ID:', e.target.value);
                       setSelectedManager(e.target.value);
                     }}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 sm:text-sm"
                   >
                     <option value="">Yönetici Seçin</option>
                     {usersData?.users.map((user) => {

@@ -411,21 +411,21 @@ export const Branches: React.FC = () => {
                   required
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input
+                <Input
                     label="E-posta"
                     name="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="Telefon"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                  />
+                  required
+                />
+                <Input
+                  label="Telefon"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Şirket</label>
@@ -577,21 +577,21 @@ export const Branches: React.FC = () => {
                   required
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input
+                <Input
                     label="E-posta"
                     name="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                  <Input
-                    label="Telefon"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                  />
+                  required
+                />
+                <Input
+                  label="Telefon"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Şirket</label>
