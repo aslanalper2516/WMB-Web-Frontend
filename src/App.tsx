@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
+import { ConfirmDialogProvider } from './components/ui/ConfirmDialog';
 import { Layout } from './components/layout/Layout';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
@@ -228,7 +229,9 @@ const App: React.FC = () => {
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <AppContent />
+            <ConfirmDialogProvider>
+              <AppContent />
+            </ConfirmDialogProvider>
           </ToastProvider>
         </AuthProvider>
       </ThemeProvider>

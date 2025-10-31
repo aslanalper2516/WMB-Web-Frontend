@@ -9,6 +9,8 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 
 export const Menus: React.FC = () => {
@@ -23,6 +25,8 @@ export const Menus: React.FC = () => {
   });
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const { data: menusData, isLoading: menusLoading } = useQuery({
     queryKey: ['menus'],
@@ -72,7 +76,14 @@ export const Menus: React.FC = () => {
   };
 
   const handleDeleteMenu = async (id: string) => {
-    if (!confirm('Bu menüyü silmek istediğinizden emin misiniz?')) return;
+    const confirmed = await confirm({
+      message: 'Bu menüyü silmek istediğinizden emin misiniz?',
+      title: 'Menü Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (!confirmed) return;
     deleteMutation.mutate(id);
   };
 

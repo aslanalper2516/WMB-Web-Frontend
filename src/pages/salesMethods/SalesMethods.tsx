@@ -4,6 +4,8 @@ import { categoryProductApi } from '../../api/categoryProduct';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, ChevronDown, ChevronRight, Folder, FileText, Settings } from 'lucide-react';
 import type { SalesMethod, CreateSalesMethodRequest, UpdateSalesMethodRequest, SalesMethodCategory, CreateSalesMethodCategoryRequest, UpdateSalesMethodCategoryRequest } from '../../types';
 
@@ -27,6 +29,8 @@ export const SalesMethods: React.FC = () => {
   });
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Kategorileri yükle
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -77,6 +81,7 @@ export const SalesMethods: React.FC = () => {
     mutationFn: categoryProductApi.createSalesMethod,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+      showToast('Satış yöntemi başarıyla oluşturuldu.', 'success');
       setIsCreateModalOpen(false);
       setFormData({ name: '', description: '', category: '' });
       setSelectedCategoryId('');
@@ -88,6 +93,7 @@ export const SalesMethods: React.FC = () => {
       categoryProductApi.updateSalesMethod(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+      showToast('Satış yöntemi başarıyla güncellendi.', 'success');
       setIsEditModalOpen(false);
       setSelectedMethod(null);
       setFormData({ name: '', description: '', category: '' });
@@ -98,6 +104,7 @@ export const SalesMethods: React.FC = () => {
     mutationFn: categoryProductApi.deleteSalesMethod,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+      showToast('Satış yöntemi başarıyla silindi.', 'success');
     },
   });
 
@@ -115,6 +122,7 @@ export const SalesMethods: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-method-categories'] });
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+      showToast('Kategori başarıyla oluşturuldu.', 'success');
       setIsCreateCategoryModalOpen(false);
       setCategoryFormData({ name: '', description: '' });
     },
@@ -126,6 +134,7 @@ export const SalesMethods: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-method-categories'] });
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+      showToast('Kategori başarıyla güncellendi.', 'success');
       setIsEditCategoryModalOpen(false);
       setSelectedCategory(null);
       setCategoryFormData({ name: '', description: '' });
@@ -137,6 +146,7 @@ export const SalesMethods: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-method-categories'] });
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+      showToast('Kategori başarıyla silindi.', 'success');
     },
   });
 
@@ -161,8 +171,15 @@ export const SalesMethods: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bu satış yöntemini silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu satış yöntemini silmek istediğinizden emin misiniz?',
+      title: 'Satış Yöntemi Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       deleteMutation.mutate(id);
     }
   };
@@ -190,8 +207,15 @@ export const SalesMethods: React.FC = () => {
     }
   };
 
-  const handleDeleteCategory = (id: string) => {
-    if (window.confirm('Bu kategoriyi silmek istediğinizden emin misiniz? Bu kategoriye ait satış yöntemleri varsa önce onları silmeniz gerekir.')) {
+  const handleDeleteCategory = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu kategoriyi silmek istediğinizden emin misiniz? Bu kategoriye ait satış yöntemleri varsa önce onları silmeniz gerekir.',
+      title: 'Kategori Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       deleteCategoryMutation.mutate(id);
     }
   };

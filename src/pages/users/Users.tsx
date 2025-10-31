@@ -8,10 +8,12 @@ import { Table } from '../../components/ui/Table';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
+import { useToast } from '../../components/ui/Toast';
 import type { User, RegisterRequest, UpdateUserRequest, Company, Branch, Role } from '../../types';
 
 export const Users: React.FC = () => {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -56,7 +58,7 @@ export const Users: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Kullanıcı oluşturma hatası:', error);
-      alert(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`);
+      showToast(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`, 'error');
     },
   });
 
@@ -71,7 +73,7 @@ export const Users: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Kullanıcı güncelleme hatası:', error);
-      alert(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`);
+      showToast(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`, 'error');
     },
   });
 
@@ -85,7 +87,7 @@ export const Users: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Kullanıcı silme hatası:', error);
-      alert(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`);
+      showToast(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`, 'error');
     },
   });
 

@@ -9,6 +9,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, ShoppingCart, UserCog, ChevronDown, ChevronRight, Folder, FileText } from 'lucide-react';
 import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod, SalesMethodCategory } from '../../types';
 
@@ -45,6 +47,8 @@ export const Branches: React.FC = () => {
   const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // İlleri yükle
   useEffect(() => {
@@ -202,8 +206,15 @@ export const Branches: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bu şubeyi silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu şubeyi silmek istediğinizden emin misiniz?',
+      title: 'Şube Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       deleteMutation.mutate(id);
     }
   };
@@ -418,9 +429,9 @@ export const Branches: React.FC = () => {
         
         if (errors.length > 0) {
           console.warn('Bazı şubelerde hata oluştu:', errors);
-          alert(`Satış yöntemleri atandı. Bazı şubelerde hata oluştu: ${errors.map((e: any) => e.branch).join(', ')}`);
+          showToast(`Satış yöntemleri atandı. Bazı şubelerde hata oluştu: ${errors.map((e: any) => e.branch).join(', ')}`, 'warning');
         } else {
-          alert('Satış yöntemleri tüm şubelere başarıyla atandı!');
+          showToast('Satış yöntemleri tüm şubelere başarıyla atandı!', 'success');
         }
         
         queryClient.invalidateQueries({ queryKey: ['branchSalesMethods'] });
@@ -432,9 +443,9 @@ export const Branches: React.FC = () => {
         
         if (result.errors && result.errors.length > 0) {
           const errorMessages = result.errors.map((e: any) => e.error).join(', ');
-          alert(`Satış yöntemleri atandı. Bazı hatalar oluştu: ${errorMessages}`);
+          showToast(`Satış yöntemleri atandı. Bazı hatalar oluştu: ${errorMessages}`, 'warning');
         } else {
-          alert('Satış yöntemleri başarıyla atandı!');
+          showToast('Satış yöntemleri başarıyla atandı!', 'success');
         }
         
         refetchBranchSalesMethods();
@@ -447,12 +458,20 @@ export const Branches: React.FC = () => {
       setIsApplyingToAllBranches(false);
     } catch (error: any) {
       console.error('Satış yöntemi atama hatası:', error);
-      alert(`Satış yöntemi atanırken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
+      showToast(`Satış yöntemi atanırken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`, 'error');
     }
   };
 
-  const handleRemoveSalesMethod = (salesMethodId: string) => {
-    if (selectedBranch && window.confirm('Bu satış yöntemini şubeden kaldırmak istediğinizden emin misiniz?')) {
+  const handleRemoveSalesMethod = async (salesMethodId: string) => {
+    if (selectedBranch) {
+      const confirmed = await confirm({
+        message: 'Bu satış yöntemini şubeden kaldırmak istediğinizden emin misiniz?',
+        title: 'Satış Yöntemi Kaldır',
+        confirmText: 'Kaldır',
+        cancelText: 'İptal',
+      });
+      
+      if (!confirmed) return;
       removeSalesMethodMutation.mutate({
         branchId: selectedBranch._id,
         salesMethodId

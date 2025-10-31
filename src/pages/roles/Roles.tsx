@@ -7,6 +7,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, Shield, Eye, X } from 'lucide-react';
 import type { Role, RolePermission, Permission, Branch } from '../../types';
 
@@ -25,6 +27,8 @@ export const Roles: React.FC = () => {
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const { data: rolesData, isLoading } = useQuery({
     queryKey: ['roles'],
@@ -119,8 +123,15 @@ export const Roles: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bu rolü silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu rolü silmek istediğinizden emin misiniz?',
+      title: 'Rol Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       deleteMutation.mutate(id);
     }
   };
@@ -171,12 +182,21 @@ export const Roles: React.FC = () => {
     }
   };
 
-  const handleRemovePermission = (permissionId: string) => {
-    if (selectedRole && window.confirm('Bu izni rolden kaldırmak istediğinizden emin misiniz?')) {
-      removePermissionMutation.mutate({
-        roleId: selectedRole._id,
-        permissionId: permissionId,
+  const handleRemovePermission = async (permissionId: string) => {
+    if (selectedRole) {
+      const confirmed = await confirm({
+        message: 'Bu izni rolden kaldırmak istediğinizden emin misiniz?',
+        title: 'İzin Kaldır',
+        confirmText: 'Kaldır',
+        cancelText: 'İptal',
       });
+      
+      if (confirmed) {
+        removePermissionMutation.mutate({
+          roleId: selectedRole._id,
+          permissionId: permissionId,
+        });
+      }
     }
   };
 

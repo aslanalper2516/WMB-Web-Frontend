@@ -7,6 +7,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, UserCog } from 'lucide-react';
 import type { Company, CreateCompanyRequest } from '../../types';
 
@@ -36,6 +38,8 @@ export const Companies: React.FC = () => {
   const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // İlleri yükle
   useEffect(() => {
@@ -178,8 +182,15 @@ export const Companies: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bu şirketi silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu şirketi silmek istediğinizden emin misiniz?',
+      title: 'Şirket Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       deleteMutation.mutate(id);
     }
   };

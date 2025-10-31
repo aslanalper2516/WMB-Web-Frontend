@@ -8,6 +8,8 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Trash2, ArrowLeft, Eye } from 'lucide-react';
 
 export const MenuDetail: React.FC = () => {
@@ -31,6 +33,8 @@ export const MenuDetail: React.FC = () => {
   const [isAddingProducts, setIsAddingProducts] = useState(false);
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Menü detaylarını getir
   const { data: menuData, isLoading: menuLoading } = useQuery({
@@ -192,7 +196,7 @@ export const MenuDetail: React.FC = () => {
     });
     
     if (duplicateProducts.length > 0) {
-      alert(`Aşağıdaki ürünler zaten menünün başka bir kategorisinde bulunuyor:\n\n${duplicateProducts.join('\n')}\n\nBir ürün sadece bir kategoriye dahil olabilir.`);
+      showToast(`Aşağıdaki ürünler zaten menünün başka bir kategorisinde bulunuyor: ${duplicateProducts.join(', ')}. Bir ürün sadece bir kategoriye dahil olabilir.`, 'warning');
       return;
     }
     
@@ -214,7 +218,7 @@ export const MenuDetail: React.FC = () => {
       setSelectedProductsForCategory([]);
     } catch (error) {
       console.error('Ürün ekleme hatası:', error);
-      alert('Bazı ürünler eklenirken hata oluştu.');
+      showToast('Bazı ürünler eklenirken hata oluştu.', 'error');
     } finally {
       setIsAddingProducts(false);
     }
@@ -249,7 +253,7 @@ export const MenuDetail: React.FC = () => {
       setSelectedBranch('');
     } catch (error) {
       console.error('Ürün atama hatası:', error);
-      alert('Bazı ürünler atanırken hata oluştu.');
+      showToast('Bazı ürünler atanırken hata oluştu.', 'error');
     } finally {
       setIsAssigningProducts(false);
     }
@@ -1154,9 +1158,16 @@ export const MenuDetail: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="danger"
-                                onClick={() => {
+                                onClick={async () => {
                                   if (productId && selectedKitchen && selectedBranchTab) {
-                                    if (window.confirm('Bu ürünü mutfaktan kaldırmak istediğinizden emin misiniz?')) {
+                                    const confirmed = await confirm({
+                                      message: 'Bu ürünü mutfaktan kaldırmak istediğinizden emin misiniz?',
+                                      title: 'Ürün Kaldır',
+                                      confirmText: 'Kaldır',
+                                      cancelText: 'İptal',
+                                    });
+                                    
+                                    if (confirmed) {
                                       removeProductFromKitchenMutation.mutate({ 
                                         productId, 
                                         kitchenId: selectedKitchen, 
@@ -1260,8 +1271,15 @@ export const MenuDetail: React.FC = () => {
                           <Button
                             size="sm"
                             variant="danger"
-                            onClick={() => {
-                              if (window.confirm(`${kitchen.name} mutfağını silmek istediğinizden emin misiniz?`)) {
+                            onClick={async () => {
+                              const confirmed = await confirm({
+                                message: `${kitchen.name} mutfağını silmek istediğinizden emin misiniz?`,
+                                title: 'Mutfak Sil',
+                                confirmText: 'Sil',
+                                cancelText: 'İptal',
+                              });
+                              
+                              if (confirmed) {
                                 deleteKitchenMutation.mutate(kitchen._id);
                               }
                             }}

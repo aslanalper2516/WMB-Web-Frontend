@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
 import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, DollarSign, AlertTriangle } from 'lucide-react';
 import type { Product, CreateProductRequest, ProductPrice, SalesMethod, CurrencyUnit } from '../../types';
 
@@ -35,6 +36,7 @@ export const Products: React.FC = () => {
 
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: ['products'],
@@ -245,8 +247,15 @@ export const Products: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bu ürünü silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu ürünü silmek istediğinizden emin misiniz?',
+      title: 'Ürün Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       deleteMutation.mutate(id);
     }
   };

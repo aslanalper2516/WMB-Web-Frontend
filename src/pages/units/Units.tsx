@@ -5,6 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, Ruler, DollarSign } from 'lucide-react';
 import type { AmountUnit, CurrencyUnit, CreateAmountUnitRequest, CreateCurrencyUnitRequest } from '../../types';
 
@@ -18,6 +20,8 @@ export const Units: React.FC = () => {
   });
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const { data: amountUnitsData, isLoading: amountUnitsLoading } = useQuery({
     queryKey: ['amount-units'],
@@ -103,8 +107,15 @@ export const Units: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Bu birimi silmek istediğinizden emin misiniz?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      message: 'Bu birimi silmek istediğinizden emin misiniz?',
+      title: 'Birim Sil',
+      confirmText: 'Sil',
+      cancelText: 'İptal',
+    });
+    
+    if (confirmed) {
       if (activeTab === 'amount') {
         deleteAmountUnitMutation.mutate(id);
       } else {
