@@ -111,10 +111,9 @@ export const Products: React.FC = () => {
   // Sayfa yüklendiğinde tüm ürünlerin fiyat durumlarını kontrol et
   React.useEffect(() => {
     const checkAllProductPrices = async () => {
-      if (!productsData?.products || !salesMethodsData?.methods) return;
+      if (!productsData?.products || !branchesData?.branches) return;
       
       const products = productsData.products;
-      const salesMethods = salesMethodsData.methods;
       
       // Tüm ürünlerin fiyatlarını paralel olarak kontrol et
       const priceCheckPromises = products.map(async (product) => {
@@ -122,17 +121,59 @@ export const Products: React.FC = () => {
           const pricesRes = await categoryProductApi.getProductPrices(product._id);
           const prices = pricesRes.prices || [];
           
-          // Tüm satış yöntemleri için fiyat var mı kontrol et
-          const hasAllPrices = salesMethods.every((method) => {
-            return prices.some((price) => {
-              const priceSalesMethodId = typeof price.salesMethod === 'string' 
-                ? price.salesMethod 
-                : price.salesMethod?._id;
-              return priceSalesMethodId === method._id;
-            });
+          // Ürünün şirketine ait şubeleri bul
+          const productCompanyId = typeof product.company === 'string' ? product.company : product.company?._id;
+          const companyBranches = branchesData.branches.filter(b => {
+            const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+            return branchCompanyId === productCompanyId;
           });
           
-          return { productId: product._id, hasAllPrices };
+          // Her şube için kontrol et
+          let hasMissingPrice = false;
+          
+          for (const branch of companyBranches) {
+            try {
+              // Şubeye atanmış satış yöntemlerini getir
+              const branchSalesMethodsRes = await categoryProductApi.getBranchSalesMethods(branch._id);
+              const branchSalesMethods = branchSalesMethodsRes.salesMethods || [];
+              
+              // Eğer şubeye hiç satış yöntemi atanmamışsa, bu şube için kontrol etme
+              if (branchSalesMethods.length === 0) {
+                continue;
+              }
+              
+              // Şubeye atanmış her satış yöntemi için fiyat var mı kontrol et
+              const branchHasAllPrices = branchSalesMethods.every((bsm: any) => {
+                const salesMethodId = typeof bsm.salesMethod === 'string' 
+                  ? bsm.salesMethod 
+                  : bsm.salesMethod?._id;
+                
+                if (!salesMethodId) return true; // null salesMethod varsa atla
+                
+                // Bu şube ve satış yöntemi için fiyat var mı?
+                return prices.some((price) => {
+                  const priceSalesMethodId = typeof price.salesMethod === 'string' 
+                    ? price.salesMethod 
+                    : price.salesMethod?._id;
+                  const priceBranchId = typeof price.branch === 'string' 
+                    ? price.branch 
+                    : price.branch?._id || '';
+                  
+                  return priceSalesMethodId === salesMethodId && priceBranchId === branch._id;
+                });
+              });
+              
+              if (!branchHasAllPrices) {
+                hasMissingPrice = true;
+                break; // Bir şubede eksik fiyat varsa yeterli
+              }
+            } catch (error) {
+              console.error(`Şube ${branch._id} satış yöntemleri kontrolü başarısız:`, error);
+              // Hata durumunda devam et, diğer şubeleri kontrol et
+            }
+          }
+          
+          return { productId: product._id, hasAllPrices: !hasMissingPrice };
         } catch (error) {
           console.error(`Ürün ${product._id} fiyat kontrolü başarısız:`, error);
           // Hata durumunda fiyat yok kabul et
@@ -155,7 +196,7 @@ export const Products: React.FC = () => {
     };
     
     checkAllProductPrices();
-  }, [productsData?.products, salesMethodsData?.methods]);
+  }, [productsData?.products, branchesData?.branches]);
 
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -312,28 +353,58 @@ export const Products: React.FC = () => {
         setSalesMethods([]);
       }
       
-      // Ürünün fiyat durumunu güncelle - tüm satış yöntemleri için fiyat var mı kontrol et
-      if (salesMethodsData?.methods) {
-        const hasAllPrices = salesMethodsData.methods.every((method) => {
-          return pricesRes.prices.some((price) => {
-            const priceSalesMethodId = typeof price.salesMethod === 'string' 
-              ? price.salesMethod 
-              : price.salesMethod?._id;
-            return priceSalesMethodId === method._id;
+      // Ürünün fiyat durumunu güncelle - şubelere özel kontrol
+      const companyBranches = filteredBranches;
+      
+      // Her şube için kontrol et
+      let hasMissingPrice = false;
+      
+      for (const branch of companyBranches) {
+        try {
+          // Şubeye atanmış satış yöntemlerini getir
+          const branchSalesMethodsRes = await categoryProductApi.getBranchSalesMethods(branch._id);
+          const branchSalesMethods = branchSalesMethodsRes.salesMethods || [];
+          
+          // Eğer şubeye hiç satış yöntemi atanmamışsa, bu şube için kontrol etme
+          if (branchSalesMethods.length === 0) {
+            continue;
+          }
+          
+          // Şubeye atanmış her satış yöntemi için fiyat var mı kontrol et
+          const branchHasAllPrices = branchSalesMethods.every((bsm: any) => {
+            const salesMethodId = typeof bsm.salesMethod === 'string' 
+              ? bsm.salesMethod 
+              : bsm.salesMethod?._id;
+            
+            if (!salesMethodId) return true; // null salesMethod varsa atla
+            
+            // Bu şube ve satış yöntemi için fiyat var mı?
+            return pricesRes.prices.some((price) => {
+              const priceSalesMethodId = typeof price.salesMethod === 'string' 
+                ? price.salesMethod 
+                : price.salesMethod?._id;
+              const priceBranchId = typeof price.branch === 'string' 
+                ? price.branch 
+                : price.branch?._id || '';
+              
+              return priceSalesMethodId === salesMethodId && priceBranchId === branch._id;
+            });
           });
-        });
-        
-        setProductPriceStatus(prev => ({
-          ...prev,
-          [product._id]: hasAllPrices
-        }));
-      } else {
-        // Satış yöntemleri yüklenmemişse sadece fiyat var mı kontrol et
-        setProductPriceStatus(prev => ({
-          ...prev,
-          [product._id]: pricesRes.prices && pricesRes.prices.length > 0
-        }));
+          
+          if (!branchHasAllPrices) {
+            hasMissingPrice = true;
+            break; // Bir şubede eksik fiyat varsa yeterli
+          }
+        } catch (error) {
+          console.error(`Şube ${branch._id} satış yöntemleri kontrolü başarısız:`, error);
+          // Hata durumunda devam et
+        }
       }
+      
+      setProductPriceStatus(prev => ({
+        ...prev,
+        [product._id]: !hasMissingPrice
+      }));
     } catch (e) {
       console.error('Fiyat verileri yüklenemedi:', e);
       // Hata durumunda da fiyat olmadığını işaretle
@@ -533,28 +604,58 @@ export const Products: React.FC = () => {
       const pricesRes = await categoryProductApi.getProductPrices(selectedProduct._id);
       setProductPrices(pricesRes.prices);
       
-      // Fiyat durumunu güncelle - tüm satış yöntemleri için fiyat var mı kontrol et
-      if (salesMethodsData?.methods) {
-        const hasAllPrices = salesMethodsData.methods.every((method) => {
-          return pricesRes.prices.some((price) => {
-            const priceSalesMethodId = typeof price.salesMethod === 'string' 
-              ? price.salesMethod 
-              : price.salesMethod?._id;
-            return priceSalesMethodId === method._id;
+      // Fiyat durumunu güncelle - şubelere özel kontrol
+      // productCompanyId ve companyBranches zaten yukarıda tanımlanmış (satır 508-514)
+      
+      // Her şube için kontrol et
+      let hasMissingPrice = false;
+      
+      for (const branch of companyBranches) {
+        try {
+          // Şubeye atanmış satış yöntemlerini getir
+          const branchSalesMethodsRes = await categoryProductApi.getBranchSalesMethods(branch._id);
+          const branchSalesMethods = branchSalesMethodsRes.salesMethods || [];
+          
+          // Eğer şubeye hiç satış yöntemi atanmamışsa, bu şube için kontrol etme
+          if (branchSalesMethods.length === 0) {
+            continue;
+          }
+          
+          // Şubeye atanmış her satış yöntemi için fiyat var mı kontrol et
+          const branchHasAllPrices = branchSalesMethods.every((bsm: any) => {
+            const salesMethodId = typeof bsm.salesMethod === 'string' 
+              ? bsm.salesMethod 
+              : bsm.salesMethod?._id;
+            
+            if (!salesMethodId) return true; // null salesMethod varsa atla
+            
+            // Bu şube ve satış yöntemi için fiyat var mı?
+            return pricesRes.prices.some((price) => {
+              const priceSalesMethodId = typeof price.salesMethod === 'string' 
+                ? price.salesMethod 
+                : price.salesMethod?._id;
+              const priceBranchId = typeof price.branch === 'string' 
+                ? price.branch 
+                : price.branch?._id || '';
+              
+              return priceSalesMethodId === salesMethodId && priceBranchId === branch._id;
+            });
           });
-        });
-        
-        setProductPriceStatus(prev => ({
-          ...prev,
-          [selectedProduct._id]: hasAllPrices
-        }));
-      } else {
-        // Satış yöntemleri yüklenmemişse sadece fiyat var mı kontrol et
-        setProductPriceStatus(prev => ({
-          ...prev,
-          [selectedProduct._id]: pricesRes.prices && pricesRes.prices.length > 0
-        }));
+          
+          if (!branchHasAllPrices) {
+            hasMissingPrice = true;
+            break; // Bir şubede eksik fiyat varsa yeterli
+          }
+        } catch (error) {
+          console.error(`Şube ${branch._id} satış yöntemleri kontrolü başarısız:`, error);
+          // Hata durumunda devam et
+        }
       }
+      
+      setProductPriceStatus(prev => ({
+        ...prev,
+        [selectedProduct._id]: !hasMissingPrice
+      }));
       
       // Başarı mesajı göster
       if (branchesToApply.length === 1) {

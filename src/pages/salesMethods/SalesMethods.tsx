@@ -343,17 +343,26 @@ export const SalesMethods: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleToggleActiveCategory(category);
                           }}
+                          disabled={toggleActiveCategoryMutation.isPending}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                            category.isActive ? 'bg-green-500' : 'bg-gray-300'
+                          } ${toggleActiveCategoryMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                           title={category.isActive ? 'Pasif Yap' : 'Aktif Yap'}
                         >
-                          {category.isActive ? '❌' : '✅'}
-                        </Button>
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              category.isActive ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                          <span className="sr-only">
+                            {category.isActive ? 'Deaktif et' : 'Aktif et'}
+                          </span>
+                        </button>
                         <Button
                           size="sm"
                           variant="outline"
@@ -432,15 +441,23 @@ export const SalesMethods: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-2 ml-4">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
+                                  <button
                                     onClick={() => handleToggleActiveSalesMethod(method)}
-                                    title={method.isActive !== false ? 'Pasif Yap' : 'Aktif Yap'}
                                     disabled={toggleActiveSalesMethodMutation.isPending}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                      method.isActive !== false ? 'bg-green-500' : 'bg-gray-300'
+                                    } ${toggleActiveSalesMethodMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                    title={method.isActive !== false ? 'Pasif Yap' : 'Aktif Yap'}
                                   >
-                                    {method.isActive !== false ? '❌' : '✅'}
-                                  </Button>
+                                    <span
+                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        method.isActive !== false ? 'translate-x-6' : 'translate-x-1'
+                                      }`}
+                                    />
+                                    <span className="sr-only">
+                                      {method.isActive !== false ? 'Deaktif et' : 'Aktif et'}
+                                    </span>
+                                  </button>
                                   <Button
                                     size="sm"
                                     variant="outline"
