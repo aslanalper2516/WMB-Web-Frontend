@@ -13,6 +13,7 @@ import { Companies } from './pages/companies/Companies';
 import { Branches } from './pages/branches/Branches';
 import { Categories } from './pages/categories/Categories';
 import { Products } from './pages/products/Products';
+import { Ingredients } from './pages/ingredients/Ingredients';
 import { Kitchens } from './pages/kitchens/Kitchens';
 import { Menus } from './pages/menus/Menus';
 import { MenuDetail } from './pages/menus/MenuDetail';
@@ -132,6 +133,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute>
               <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ingredients"
+          element={
+            <ProtectedRoute>
+              <Ingredients />
             </ProtectedRoute>
           }
         />

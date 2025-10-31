@@ -173,10 +173,15 @@ export interface Kitchen {
 
 export interface ProductIngredient {
   _id: string;
-  product: string;
-  ingredient: string;
+  product: string | Product;
+  ingredient: string | Ingredient;
+  company: string | Company;
+  branch: string | Branch;
   amount: number;
-  unit: string;
+  amountUnit: string | AmountUnit;
+  price: number;
+  priceUnit: string | CurrencyUnit;
+  isDefault: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -216,10 +221,14 @@ export interface CreateKitchenRequest {
 }
 
 export interface CreateProductIngredientRequest {
-  product: string;
   ingredient: string;
+  company: string;
+  branch: string;
   amount: number;
-  unit: string;
+  amountUnit: string;
+  price: number;
+  priceUnit: string;
+  isDefault?: boolean;
 }
 
 export interface AmountUnit {

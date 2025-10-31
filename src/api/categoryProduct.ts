@@ -17,6 +17,12 @@ import type {
   SalesMethodCategory,
   CreateSalesMethodCategoryRequest,
   UpdateSalesMethodCategoryRequest,
+  IngredientCategory,
+  CreateIngredientCategoryRequest,
+  UpdateIngredientCategoryRequest,
+  Ingredient,
+  CreateIngredientRequest,
+  UpdateIngredientRequest,
 } from '../types';
 
 export const categoryProductApi = {
@@ -62,14 +68,68 @@ export const categoryProductApi = {
     return apiClient.delete<{ message: string }>(`/category-product/products/${id}`);
   },
 
-  // Product Ingredients
-  getProductIngredients: async (productId?: string): Promise<{ message: string; ingredients: ProductIngredient[] }> => {
-    const url = productId ? `/category-product/product-ingredients?product=${productId}` : '/category-product/product-ingredients';
+  // Ingredient Categories
+  getIngredientCategories: async (companyId?: string): Promise<{ message: string; categories: IngredientCategory[] }> => {
+    let url = '/category-product/ingredient-categories';
+    if (companyId) url += `?company=${companyId}`;
+    return apiClient.get<{ message: string; categories: IngredientCategory[] }>(url);
+  },
+
+  getIngredientCategoryById: async (id: string): Promise<{ message: string; category: IngredientCategory }> => {
+    return apiClient.get<{ message: string; category: IngredientCategory }>(`/category-product/ingredient-categories/${id}`);
+  },
+
+  createIngredientCategory: async (data: CreateIngredientCategoryRequest): Promise<{ message: string; category: IngredientCategory }> => {
+    return apiClient.post<{ message: string; category: IngredientCategory }>('/category-product/ingredient-categories', data);
+  },
+
+  updateIngredientCategory: async (id: string, data: UpdateIngredientCategoryRequest): Promise<{ message: string; category: IngredientCategory }> => {
+    return apiClient.put<{ message: string; category: IngredientCategory }>(`/category-product/ingredient-categories/${id}`, data);
+  },
+
+  deleteIngredientCategory: async (id: string): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(`/category-product/ingredient-categories/${id}`);
+  },
+
+  // Ingredients
+  getIngredients: async (companyId?: string, categoryId?: string): Promise<{ message: string; ingredients: Ingredient[] }> => {
+    let url = '/category-product/ingredients';
+    const params = [];
+    if (companyId) params.push(`company=${companyId}`);
+    if (categoryId) params.push(`category=${categoryId}`);
+    if (params.length > 0) url += `?${params.join('&')}`;
+    return apiClient.get<{ message: string; ingredients: Ingredient[] }>(url);
+  },
+
+  getIngredientById: async (id: string): Promise<{ message: string; ingredient: Ingredient }> => {
+    return apiClient.get<{ message: string; ingredient: Ingredient }>(`/category-product/ingredients/${id}`);
+  },
+
+  createIngredient: async (data: CreateIngredientRequest): Promise<{ message: string; ingredient: Ingredient }> => {
+    return apiClient.post<{ message: string; ingredient: Ingredient }>('/category-product/ingredients', data);
+  },
+
+  updateIngredient: async (id: string, data: UpdateIngredientRequest): Promise<{ message: string; ingredient: Ingredient }> => {
+    return apiClient.put<{ message: string; ingredient: Ingredient }>(`/category-product/ingredients/${id}`, data);
+  },
+
+  deleteIngredient: async (id: string): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(`/category-product/ingredients/${id}`);
+  },
+
+  // Product Ingredients (routes: /products/:id/ingredients, /product-ingredients/:id)
+  getProductIngredients: async (productId: string, branchId?: string): Promise<{ message: string; ingredients: ProductIngredient[] }> => {
+    let url = `/category-product/products/${productId}/ingredients`;
+    if (branchId) url += `?branch=${branchId}`;
     return apiClient.get<{ message: string; ingredients: ProductIngredient[] }>(url);
   },
 
-  createProductIngredient: async (data: CreateProductIngredientRequest): Promise<{ message: string; ingredient: ProductIngredient }> => {
-    return apiClient.post<{ message: string; ingredient: ProductIngredient }>('/category-product/product-ingredients', data);
+  createProductIngredient: async (productId: string, data: CreateProductIngredientRequest): Promise<{ message: string; ingredient: ProductIngredient }> => {
+    return apiClient.post<{ message: string; ingredient: ProductIngredient }>(`/category-product/products/${productId}/ingredients`, data);
+  },
+
+  getProductIngredientById: async (id: string): Promise<{ message: string; ingredient: ProductIngredient }> => {
+    return apiClient.get<{ message: string; ingredient: ProductIngredient }>(`/category-product/product-ingredients/${id}`);
   },
 
   updateProductIngredient: async (id: string, data: Partial<CreateProductIngredientRequest>): Promise<{ message: string; ingredient: ProductIngredient }> => {

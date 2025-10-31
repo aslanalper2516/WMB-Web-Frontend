@@ -11,7 +11,8 @@ import {
   Ruler,
   User,
   Menu as MenuIcon,
-  ShoppingCart
+  ShoppingCart,
+  FlaskConical
 } from 'lucide-react';
 
 const navigation = [
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Şubeler', href: '/branches', icon: MapPin },
   { name: 'Kategoriler', href: '/categories', icon: Package },
   { name: 'Ürünler', href: '/products', icon: Package },
+  { name: 'Malzemeler', href: '/ingredients', icon: FlaskConical },
   { name: 'Mutfaklar', href: '/kitchens', icon: ChefHat },
   { name: 'Menüler', href: '/menus', icon: MenuIcon },
   { name: 'Birimler', href: '/units', icon: Ruler },
