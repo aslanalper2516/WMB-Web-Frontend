@@ -334,6 +334,7 @@ export const Products: React.FC = () => {
     
     // Şube seçimine göre fiyat bul
     const existing = productPrices.find(p => {
+      if (!p.salesMethod) return false; // null salesMethod kontrolü
       const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
       const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
       
@@ -365,20 +366,31 @@ export const Products: React.FC = () => {
     try {
       const branchSalesMethodsRes = await categoryProductApi.getBranchSalesMethods(branchId);
       // BranchSalesMethod array'inden SalesMethod array'ine dönüştür
-      const salesMethodsList: SalesMethod[] = branchSalesMethodsRes.salesMethods.map((bsm: any) => {
-        // BranchSalesMethod içindeki salesMethod alanını çıkar
-        const salesMethod = typeof bsm.salesMethod === 'string' 
-          ? { _id: bsm.salesMethod, name: '', createdAt: '', updatedAt: '' } 
-          : bsm.salesMethod;
-        return {
-          _id: salesMethod._id,
-          name: salesMethod.name || '',
-          description: salesMethod.description,
-          parent: salesMethod.parent,
-          createdAt: salesMethod.createdAt || '',
-          updatedAt: salesMethod.updatedAt || '',
-        } as SalesMethod;
-      });
+      // Null olan salesMethod'ları filtrele
+      const salesMethodsList: SalesMethod[] = branchSalesMethodsRes.salesMethods
+        .filter((bsm: any) => bsm.salesMethod) // null salesMethod'ları filtrele
+        .map((bsm: any) => {
+          // BranchSalesMethod içindeki salesMethod alanını çıkar
+          const salesMethod = typeof bsm.salesMethod === 'string' 
+            ? { _id: bsm.salesMethod, name: '', createdAt: '', updatedAt: '' } 
+            : bsm.salesMethod;
+          
+          // salesMethod hala null ise atla
+          if (!salesMethod || !salesMethod._id) {
+            return null;
+          }
+          
+          return {
+            _id: salesMethod._id,
+            name: salesMethod.name || '',
+            description: salesMethod.description,
+            parent: salesMethod.parent,
+            createdAt: salesMethod.createdAt || '',
+            updatedAt: salesMethod.updatedAt || '',
+          } as SalesMethod;
+        })
+        .filter((sm: SalesMethod | null) => sm !== null) as SalesMethod[]; // null değerleri filtrele
+      
       setSalesMethods(salesMethodsList);
     } catch (error) {
       console.error('Şube satış yöntemleri yüklenemedi:', error);
@@ -417,6 +429,7 @@ export const Products: React.FC = () => {
       for (const branchId of branchesToApply) {
         // Önce mevcut fiyatı kontrol et ve sil
         const existingPrice = productPrices.find(p => {
+          if (!p.salesMethod) return false; // null salesMethod kontrolü
           const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
           const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
           return priceSalesMethodId === editingSalesMethodId && priceBranchId === branchId;
@@ -837,6 +850,7 @@ export const Products: React.FC = () => {
                       {salesMethods.map((method) => {
                         // Seçili şubeye göre fiyat bul (sadece şube fiyatları)
                         const existing = productPrices.find(p => {
+                          if (!p.salesMethod) return false; // null salesMethod kontrolü
                           const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
                           const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
                           

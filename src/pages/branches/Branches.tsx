@@ -31,7 +31,6 @@ export const Branches: React.FC = () => {
     street: '',
     address: '',
   });
-  const [selectedSalesMethod, setSelectedSalesMethod] = useState('');
   const [selectedSalesMethods, setSelectedSalesMethods] = useState<string[]>([]); // Çoklu seçim için
   const [isApplyingToAllBranches, setIsApplyingToAllBranches] = useState(false);
   
@@ -174,7 +173,6 @@ export const Branches: React.FC = () => {
       categoryProductApi.assignSalesMethodToBranch(branchId, { salesMethod: salesMethodId }),
     onSuccess: () => {
       refetchBranchSalesMethods();
-      setSelectedSalesMethod('');
       setSelectedSalesMethods([]);
       setIsApplyingToAllBranches(false);
     },
@@ -288,7 +286,6 @@ export const Branches: React.FC = () => {
     setSelectedBranch(branch);
     setIsSalesMethodsModalOpen(true);
     // State'leri temizle
-    setSelectedSalesMethod('');
     setSelectedSalesMethods([]);
     setIsApplyingToAllBranches(false);
   };
@@ -320,7 +317,7 @@ export const Branches: React.FC = () => {
               // Her şube için ayrı kontrol
               const branchSalesMethods = await categoryProductApi.getBranchSalesMethods(branch._id);
               const alreadyAssigned = branchSalesMethods.salesMethods.some(
-                (bsm: BranchSalesMethod) => bsm.salesMethod._id === salesMethodId
+                (bsm: BranchSalesMethod) => bsm.salesMethod && bsm.salesMethod._id === salesMethodId
               );
               
               if (!alreadyAssigned) {
@@ -329,7 +326,7 @@ export const Branches: React.FC = () => {
             } else {
               // Sadece seçili şubeye ata - zaten atanmış mı kontrol et
               const isAlreadyAssigned = branchSalesMethodsData?.salesMethods?.some(
-                (bsm: BranchSalesMethod) => bsm.salesMethod._id === salesMethodId
+                (bsm: BranchSalesMethod) => bsm.salesMethod && bsm.salesMethod._id === salesMethodId
               );
               
               if (!isAlreadyAssigned) {
@@ -352,12 +349,6 @@ export const Branches: React.FC = () => {
         console.error('Satış yöntemi atama hatası:', error);
         alert('Satış yöntemi atanırken bir hata oluştu!');
       }
-    } else if (selectedSalesMethod) {
-      // Tekli seçim modu: Eski mantık
-      assignSalesMethodMutation.mutate({
-        branchId: selectedBranch._id,
-        salesMethodId: selectedSalesMethod
-      });
     }
   };
 
@@ -816,18 +807,20 @@ export const Branches: React.FC = () => {
                   <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Mevcut Satış Yöntemleri</h4>
                   {branchSalesMethodsData?.salesMethods && branchSalesMethodsData.salesMethods.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {branchSalesMethodsData.salesMethods.map((branchSalesMethod: BranchSalesMethod) => (
+                      {branchSalesMethodsData.salesMethods
+                        .filter((branchSalesMethod: BranchSalesMethod) => branchSalesMethod.salesMethod) // null salesMethod'ları filtrele
+                        .map((branchSalesMethod: BranchSalesMethod) => (
                         <div key={branchSalesMethod._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex justify-between items-center bg-white dark:bg-gray-700">
                           <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{branchSalesMethod.salesMethod.name}</p>
-                            {branchSalesMethod.salesMethod.description && (
+                            <p className="font-medium text-gray-900 dark:text-white">{branchSalesMethod.salesMethod?.name || 'Bilinmeyen Satış Yöntemi'}</p>
+                            {branchSalesMethod.salesMethod?.description && (
                               <p className="text-sm text-gray-500 dark:text-gray-400">{branchSalesMethod.salesMethod.description}</p>
                             )}
                           </div>
                           <Button
                             size="sm"
                             variant="danger"
-                            onClick={() => handleRemoveSalesMethod(branchSalesMethod.salesMethod._id)}
+                            onClick={() => handleRemoveSalesMethod(branchSalesMethod.salesMethod?._id || '')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -854,7 +847,7 @@ export const Branches: React.FC = () => {
                       {(() => {
                         const availableMethods = salesMethodsData?.methods?.filter((sm: SalesMethod) => 
                           !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
-                            bsm.salesMethod._id === sm._id
+                            bsm.salesMethod && bsm.salesMethod._id === sm._id
                           )
                         ) || [];
                         
@@ -884,8 +877,6 @@ export const Branches: React.FC = () => {
                                       } else {
                                         setSelectedSalesMethods(prev => prev.filter(id => id !== method._id));
                                       }
-                                      // Tekli seçimi temizle
-                                      setSelectedSalesMethod('');
                                     }}
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                                   />
@@ -934,38 +925,6 @@ export const Branches: React.FC = () => {
                         </label>
                       </div>
                     )}
-                    
-                    {/* Tekli Seçim (Fallback) */}
-                    <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Veya tekli seçim:</p>
-                      <form onSubmit={handleAssignSalesMethod} className="flex space-x-2">
-                        <Select
-                          value={selectedSalesMethod}
-                          onChange={(e) => {
-                            setSelectedSalesMethod(e.target.value);
-                            // Çoklu seçimi temizle
-                            setSelectedSalesMethods([]);
-                          }}
-                          options={salesMethodsData?.methods?.filter((sm: SalesMethod) => 
-                            !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
-                              bsm.salesMethod._id === sm._id
-                            )
-                          ).map((sm: SalesMethod) => ({
-                            value: sm._id,
-                            label: sm.name
-                          })) || []}
-                          placeholder="Satış yöntemi seçiniz..."
-                          className="flex-1"
-                        />
-                        <Button
-                          type="submit"
-                          disabled={!selectedSalesMethod && selectedSalesMethods.length === 0}
-                          loading={assignSalesMethodMutation.isPending}
-                        >
-                          Ata
-                        </Button>
-                      </form>
-                    </div>
                     
                     {/* Çoklu Seçim için Kaydet Butonu */}
                     {selectedSalesMethods.length > 0 && (
