@@ -23,7 +23,7 @@ export const Roles: React.FC = () => {
     scope: 'GLOBAL' as 'GLOBAL' | 'BRANCH',
     branch: '',
   });
-  const [selectedPermission, setSelectedPermission] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
 
   const queryClient = useQueryClient();
@@ -148,7 +148,7 @@ export const Roles: React.FC = () => {
 
   const openAssignModal = async (role: Role) => {
     setSelectedRole(role);
-    setSelectedPermission(''); // Seçimi sıfırla
+    setSelectedPermissions([]); // Seçimleri sıfırla
     try {
       // Önce mevcut izinleri yükle
       const permissions = await rolePermissionApi.getRolePermissions(role._id);
@@ -172,13 +172,59 @@ export const Roles: React.FC = () => {
     }
   };
 
-  const handleAssignPermission = (e: React.FormEvent) => {
+  const handleAssignPermission = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedRole && selectedPermission) {
-      assignPermissionMutation.mutate({
-        roleId: selectedRole._id,
-        permissionId: selectedPermission,
-      });
+    if (selectedRole && selectedPermissions.length > 0) {
+      try {
+        // Tüm seçili izinleri paralel olarak ata
+        const promises = selectedPermissions.map(permissionId =>
+          rolePermissionApi.assignPermissionToRole({
+            roleId: selectedRole._id,
+            permissionId: permissionId,
+          })
+        );
+        
+        await Promise.all(promises);
+        
+        // Başarı mesajı göster
+        showToast(`${selectedPermissions.length} izin başarıyla atandı.`, 'success');
+        
+        // Cache'i güncelle
+        queryClient.invalidateQueries({ queryKey: ['roles'] });
+        
+        // İzinleri yeniden yükle
+        if (selectedRole) {
+          const permissions = await rolePermissionApi.getRolePermissions(selectedRole._id);
+          setRolePermissions(permissions);
+        }
+        
+        // Modal'ı kapat
+        setIsAssignModalOpen(false);
+        setSelectedPermissions([]);
+      } catch (error: any) {
+        console.error('İzin atama hatası:', error);
+        showToast(`İzin atanırken bir hata oluştu: ${error?.message || 'Bilinmeyen hata'}`, 'error');
+      }
+    }
+  };
+
+  const handleTogglePermission = (permissionId: string) => {
+    setSelectedPermissions(prev => {
+      if (prev.includes(permissionId)) {
+        return prev.filter(id => id !== permissionId);
+      } else {
+        return [...prev, permissionId];
+      }
+    });
+  };
+
+  const handleSelectAllPermissions = () => {
+    if (selectedPermissions.length === availablePermissions.length) {
+      // Tümünü kaldır
+      setSelectedPermissions([]);
+    } else {
+      // Tümünü seç
+      setSelectedPermissions(availablePermissions.map(p => p._id));
     }
   };
 
@@ -412,14 +458,26 @@ export const Roles: React.FC = () => {
       {/* Assign Permission Modal */}
       {isAssignModalOpen && (
         <div className="fixed inset-0 bg-gray-600 dark:bg-black bg-opacity-50 dark:bg-opacity-70 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+          <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 {selectedRole?.name} Rolüne İzin Ata
               </h3>
               <form onSubmit={handleAssignPermission} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">İzin Seçin</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">İzin Seçin</label>
+                    {availablePermissions.length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSelectAllPermissions}
+                      >
+                        {selectedPermissions.length === availablePermissions.length ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+                      </Button>
+                    )}
+                  </div>
                   {availablePermissions.length === 0 ? (
                     <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-md">
                       <p className="text-sm text-yellow-800 dark:text-yellow-400">
@@ -427,20 +485,36 @@ export const Roles: React.FC = () => {
                       </p>
                     </div>
                   ) : (
-                    <select
-                      name="permission"
-                      value={selectedPermission}
-                      onChange={(e) => setSelectedPermission(e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      required
-                    >
-                      <option value="">İzin Seçin</option>
+                    <div className="mt-2 max-h-60 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
                       {availablePermissions.map((permission) => (
-                        <option key={permission._id} value={permission._id}>
-                          {permission.name}
-                        </option>
+                        <label
+                          key={permission._id}
+                          className="flex items-center space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-200 dark:border-gray-600 last:border-b-0 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedPermissions.includes(permission._id)}
+                            onChange={() => handleTogglePermission(permission._id)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {permission.name}
+                            </div>
+                            {permission.description && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {permission.description}
+                              </div>
+                            )}
+                          </div>
+                        </label>
                       ))}
-                    </select>
+                    </div>
+                  )}
+                  {selectedPermissions.length > 0 && (
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      {selectedPermissions.length} izin seçildi.
+                    </p>
                   )}
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -449,17 +523,16 @@ export const Roles: React.FC = () => {
                     variant="outline"
                     onClick={() => {
                       setIsAssignModalOpen(false);
-                      setSelectedPermission('');
+                      setSelectedPermissions([]);
                     }}
                   >
                     İptal
                   </Button>
                   <Button
                     type="submit"
-                    loading={assignPermissionMutation.isPending}
-                    disabled={availablePermissions.length === 0}
+                    disabled={availablePermissions.length === 0 || selectedPermissions.length === 0}
                   >
-                    İzin Ata
+                    {selectedPermissions.length > 0 ? `${selectedPermissions.length} İzin Ata` : 'İzin Ata'}
                   </Button>
                 </div>
               </form>
