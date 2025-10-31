@@ -131,7 +131,7 @@ export const Products: React.FC = () => {
           console.error(`Ürün ${product._id} fiyat kontrolü başarısız:`, error);
           // Hata durumunda fiyat yok kabul et
           return { productId: product._id, hasAllPrices: false };
-        }
+      }
       });
       
       // Tüm kontroller tamamlandığında durumu güncelle
@@ -279,17 +279,22 @@ export const Products: React.FC = () => {
     setIsApplyingToAllBranches(false);
     
     try {
-      const [pricesRes, methodsRes, unitsRes] = await Promise.all([
+      const [pricesRes, unitsRes] = await Promise.all([
         categoryProductApi.getProductPrices(product._id),
-        categoryProductApi.getSalesMethods(),
         categoryProductApi.getCurrencyUnits(),
       ]);
       setProductPrices(pricesRes.prices);
-      setSalesMethods(methodsRes.methods);
       setCurrencyUnits(unitsRes.units);
       setEditingPriceId('');
       setEditingPrice(0);
       setEditingCurrencyUnitId(unitsRes.units?.[0]?._id || '');
+      
+      // İlk şube seçiliyse o şubeye ait satış yöntemlerini yükle
+      if (filteredBranches.length > 0) {
+        loadBranchSalesMethods(filteredBranches[0]._id);
+      } else {
+        setSalesMethods([]);
+      }
       
       // Ürünün fiyat durumunu güncelle - tüm satış yöntemleri için fiyat var mı kontrol et
       if (salesMethodsData?.methods) {
@@ -355,6 +360,32 @@ export const Products: React.FC = () => {
     }
   };
 
+  // Şube seçildiğinde o şubeye ait satış yöntemlerini yükle
+  const loadBranchSalesMethods = async (branchId: string) => {
+    try {
+      const branchSalesMethodsRes = await categoryProductApi.getBranchSalesMethods(branchId);
+      // BranchSalesMethod array'inden SalesMethod array'ine dönüştür
+      const salesMethodsList: SalesMethod[] = branchSalesMethodsRes.salesMethods.map((bsm: any) => {
+        // BranchSalesMethod içindeki salesMethod alanını çıkar
+        const salesMethod = typeof bsm.salesMethod === 'string' 
+          ? { _id: bsm.salesMethod, name: '', createdAt: '', updatedAt: '' } 
+          : bsm.salesMethod;
+        return {
+          _id: salesMethod._id,
+          name: salesMethod.name || '',
+          description: salesMethod.description,
+          parent: salesMethod.parent,
+          createdAt: salesMethod.createdAt || '',
+          updatedAt: salesMethod.updatedAt || '',
+        } as SalesMethod;
+      });
+      setSalesMethods(salesMethodsList);
+    } catch (error) {
+      console.error('Şube satış yöntemleri yüklenemedi:', error);
+      setSalesMethods([]);
+    }
+  };
+
   const handleCancelEdit = () => {
     setEditingSalesMethodId('');
     setEditingPriceId('');
@@ -393,15 +424,15 @@ export const Products: React.FC = () => {
         
         if (existingPrice) {
           await categoryProductApi.deleteProductPrice(existingPrice._id);
-        }
+      }
         
         // Yeni fiyatı ekle
-        await categoryProductApi.createProductPrice(selectedProduct._id, {
-          salesMethod: editingSalesMethodId,
-          price: editingPrice,
-          currencyUnit: editingCurrencyUnitId,
+      await categoryProductApi.createProductPrice(selectedProduct._id, {
+        salesMethod: editingSalesMethodId,
+        price: editingPrice,
+        currencyUnit: editingCurrencyUnitId,
           branch: branchId,
-        });
+      });
       }
       
       // Yeniden yükle
@@ -505,34 +536,34 @@ export const Products: React.FC = () => {
         const hasPrice = productPriceStatus[item._id] ?? null; // null = henüz kontrol edilmedi
         
         return (
-          <div className="flex space-x-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openPriceModal(item)}
+        <div className="flex space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openPriceModal(item)}
               title={hasPrice === false ? "Fiyatları Düzenle (Fiyat girilmemiş)" : "Fiyatları Düzenle"}
               className="relative"
-            >
-              <DollarSign className="h-4 w-4" />
+          >
+            <DollarSign className="h-4 w-4" />
               {hasPrice === false && (
                 <AlertTriangle className="absolute -top-1 -right-1 h-3 w-3 text-yellow-500 fill-yellow-500" />
               )}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleEdit(item)}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => handleDelete(item._id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(item)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => handleDelete(item._id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
         );
       },
     },
@@ -772,9 +803,11 @@ export const Products: React.FC = () => {
                         {filteredBranches.map((branch) => (
                           <button
                             key={branch._id}
-                            onClick={() => {
+                            onClick={async () => {
                               setSelectedBranchTab(branch._id);
                               handleCancelEdit();
+                              // Şube değiştiğinde o şubeye ait satış yöntemlerini yükle
+                              await loadBranchSalesMethods(branch._id);
                             }}
                             className={`py-3 px-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
                               selectedBranchTab === branch._id
@@ -821,28 +854,28 @@ export const Products: React.FC = () => {
                             </td>
                             {isEditing ? (
                               <>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <Input
-                                    type="number"
-                                    value={editingPrice}
-                                    onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
-                                    placeholder="Fiyat giriniz"
-                                    min="0"
-                                    step="0.01"
+                            <td className="px-6 py-4 whitespace-nowrap">
+                      <Input
+                        type="number"
+                        value={editingPrice}
+                        onChange={(e) => setEditingPrice(parseFloat(e.target.value) || 0)}
+                        placeholder="Fiyat giriniz"
+                        min="0"
+                        step="0.01"
                                     className="w-32"
-                                  />
+                      />
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <select
+                      <select
                                     className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                    value={editingCurrencyUnitId}
-                                    onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
-                                    required
-                                  >
-                                    {currencyUnits.map((u) => (
-                                      <option key={u._id} value={u._id}>{u.name}</option>
-                                    ))}
-                                  </select>
+                        value={editingCurrencyUnitId}
+                        onChange={(e) => setEditingCurrencyUnitId(e.target.value)}
+                        required
+                      >
+                        {currencyUnits.map((u) => (
+                          <option key={u._id} value={u._id}>{u.name}</option>
+                        ))}
+                      </select>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                   <div className="flex flex-col space-y-2">
@@ -861,7 +894,7 @@ export const Products: React.FC = () => {
                                       >
                                         Kaydet
                                       </Button>
-                                    </div>
+                    </div>
                                     {(() => {
                                       const productCompanyId = typeof selectedProduct.company === 'string' 
                                         ? selectedProduct.company 
@@ -888,12 +921,12 @@ export const Products: React.FC = () => {
                                             >
                                               Diğer şubelere de uygula ({filteredBranches.length} şube)
                                             </label>
-                                          </div>
+                    </div>
                                         );
                                       }
                                       return null;
                                     })()}
-                                  </div>
+                  </div>
                                 </td>
                               </>
                             ) : (

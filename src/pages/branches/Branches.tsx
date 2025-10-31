@@ -32,6 +32,8 @@ export const Branches: React.FC = () => {
     address: '',
   });
   const [selectedSalesMethod, setSelectedSalesMethod] = useState('');
+  const [selectedSalesMethods, setSelectedSalesMethods] = useState<string[]>([]); // Çoklu seçim için
+  const [isApplyingToAllBranches, setIsApplyingToAllBranches] = useState(false);
   
   // TurkiyeAPI state'leri
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -173,6 +175,8 @@ export const Branches: React.FC = () => {
     onSuccess: () => {
       refetchBranchSalesMethods();
       setSelectedSalesMethod('');
+      setSelectedSalesMethods([]);
+      setIsApplyingToAllBranches(false);
     },
   });
 
@@ -283,12 +287,73 @@ export const Branches: React.FC = () => {
   const openSalesMethodsModal = (branch: Branch) => {
     setSelectedBranch(branch);
     setIsSalesMethodsModalOpen(true);
+    // State'leri temizle
+    setSelectedSalesMethod('');
+    setSelectedSalesMethods([]);
+    setIsApplyingToAllBranches(false);
   };
 
 
-  const handleAssignSalesMethod = (e: React.FormEvent) => {
+  const handleAssignSalesMethod = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedBranch && selectedSalesMethod) {
+    if (!selectedBranch) return;
+    
+    // Çoklu seçim modu: Seçilen satış yöntemlerini uygula
+    if (selectedSalesMethods.length > 0) {
+      try {
+        // Uygulanacak şubeleri belirle
+        const branchesToApply = isApplyingToAllBranches && selectedBranch.company
+          ? branchesData?.branches?.filter(b => {
+              const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+              const selectedBranchCompanyId = typeof selectedBranch.company === 'string' 
+                ? selectedBranch.company 
+                : selectedBranch.company?._id;
+              return branchCompanyId === selectedBranchCompanyId;
+            }) || []
+          : [selectedBranch];
+        
+        // Her satış yöntemi için her şubeye ata
+        for (const salesMethodId of selectedSalesMethods) {
+          for (const branch of branchesToApply) {
+            // Bu şubeye özel kontrol - eğer tüm şubelere uyguluyorsak her şubeyi kontrol et
+            if (isApplyingToAllBranches) {
+              // Her şube için ayrı kontrol
+              const branchSalesMethods = await categoryProductApi.getBranchSalesMethods(branch._id);
+              const alreadyAssigned = branchSalesMethods.salesMethods.some(
+                (bsm: BranchSalesMethod) => bsm.salesMethod._id === salesMethodId
+              );
+              
+              if (!alreadyAssigned) {
+                await categoryProductApi.assignSalesMethodToBranch(branch._id, { salesMethod: salesMethodId });
+              }
+            } else {
+              // Sadece seçili şubeye ata - zaten atanmış mı kontrol et
+              const isAlreadyAssigned = branchSalesMethodsData?.salesMethods?.some(
+                (bsm: BranchSalesMethod) => bsm.salesMethod._id === salesMethodId
+              );
+              
+              if (!isAlreadyAssigned) {
+                await categoryProductApi.assignSalesMethodToBranch(selectedBranch._id, { salesMethod: salesMethodId });
+              }
+            }
+          }
+        }
+        
+        // Tüm şubeleri yeniden yükle
+        if (isApplyingToAllBranches) {
+          queryClient.invalidateQueries({ queryKey: ['branchSalesMethods'] });
+        } else {
+          refetchBranchSalesMethods();
+        }
+        
+        setSelectedSalesMethods([]);
+        setIsApplyingToAllBranches(false);
+      } catch (error) {
+        console.error('Satış yöntemi atama hatası:', error);
+        alert('Satış yöntemi atanırken bir hata oluştu!');
+      }
+    } else if (selectedSalesMethod) {
+      // Tekli seçim modu: Eski mantık
       assignSalesMethodMutation.mutate({
         branchId: selectedBranch._id,
         salesMethodId: selectedSalesMethod
@@ -776,30 +841,148 @@ export const Branches: React.FC = () => {
 
                 {/* Yeni Satış Yöntemi Atama */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Yeni Satış Yöntemi Ata</h4>
-                  <form onSubmit={handleAssignSalesMethod} className="flex space-x-2">
-                    <Select
-                      value={selectedSalesMethod}
-                      onChange={(e) => setSelectedSalesMethod(e.target.value)}
-                      options={salesMethodsData?.methods?.filter((sm: SalesMethod) => 
-                        !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
-                          bsm.salesMethod._id === sm._id
-                        )
-                      ).map((sm: SalesMethod) => ({
-                        value: sm._id,
-                        label: sm.name
-                      })) || []}
-                      placeholder="Satış yöntemi seçiniz..."
-                      className="flex-1"
-                    />
-                    <Button
-                      type="submit"
-                      disabled={!selectedSalesMethod}
-                      loading={assignSalesMethodMutation.isPending}
-                    >
-                      Ata
-                    </Button>
-                  </form>
+                  <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">Yeni Satış Yöntemi Ata</h4>
+                  
+                  {/* Çoklu Seçim Modu */}
+                  <div className="space-y-3 mb-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md p-3">
+                      <p className="text-sm text-blue-800 dark:text-blue-400 mb-3">
+                        Birden fazla satış yöntemi seçerek toplu işlem yapabilirsiniz.
+                      </p>
+                      
+                      {/* Mevcut olmayan satış yöntemlerini listele */}
+                      {(() => {
+                        const availableMethods = salesMethodsData?.methods?.filter((sm: SalesMethod) => 
+                          !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
+                            bsm.salesMethod._id === sm._id
+                          )
+                        ) || [];
+                        
+                        if (availableMethods.length === 0) {
+                          return (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Atanabilecek satış yöntemi kalmadı.
+                            </p>
+                          );
+                        }
+                        
+                        return (
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {availableMethods.map((method: SalesMethod) => {
+                              const isSelected = selectedSalesMethods.includes(method._id);
+                              return (
+                                <label
+                                  key={method._id}
+                                  className="flex items-center space-x-2 p-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedSalesMethods(prev => [...prev, method._id]);
+                                      } else {
+                                        setSelectedSalesMethods(prev => prev.filter(id => id !== method._id));
+                                      }
+                                      // Tekli seçimi temizle
+                                      setSelectedSalesMethod('');
+                                    }}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                                  />
+                                  <div className="flex-1">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {method.name}
+                                    </span>
+                                    {method.description && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {method.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    
+                    {/* Tüm şubelere uygula checkbox'ı - sadece çoklu seçim modunda */}
+                    {selectedSalesMethods.length > 0 && selectedBranch?.company && (
+                      <div className="flex items-center space-x-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-md">
+                        <input
+                          type="checkbox"
+                          id="applyToAllBranches"
+                          checked={isApplyingToAllBranches}
+                          onChange={(e) => setIsApplyingToAllBranches(e.target.checked)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+                        />
+                        <label
+                          htmlFor="applyToAllBranches"
+                          className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
+                        >
+                          {(() => {
+                            const companyId = typeof selectedBranch.company === 'string' 
+                              ? selectedBranch.company 
+                              : selectedBranch.company?._id;
+                            const companyBranches = branchesData?.branches?.filter(b => {
+                              const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+                              return branchCompanyId === companyId;
+                            }) || [];
+                            return `Tüm şubelere uygula (${companyBranches.length} şube)`;
+                          })()}
+                        </label>
+                      </div>
+                    )}
+                    
+                    {/* Tekli Seçim (Fallback) */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Veya tekli seçim:</p>
+                      <form onSubmit={handleAssignSalesMethod} className="flex space-x-2">
+                        <Select
+                          value={selectedSalesMethod}
+                          onChange={(e) => {
+                            setSelectedSalesMethod(e.target.value);
+                            // Çoklu seçimi temizle
+                            setSelectedSalesMethods([]);
+                          }}
+                          options={salesMethodsData?.methods?.filter((sm: SalesMethod) => 
+                            !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
+                              bsm.salesMethod._id === sm._id
+                            )
+                          ).map((sm: SalesMethod) => ({
+                            value: sm._id,
+                            label: sm.name
+                          })) || []}
+                          placeholder="Satış yöntemi seçiniz..."
+                          className="flex-1"
+                        />
+                        <Button
+                          type="submit"
+                          disabled={!selectedSalesMethod && selectedSalesMethods.length === 0}
+                          loading={assignSalesMethodMutation.isPending}
+                        >
+                          Ata
+                        </Button>
+                      </form>
+                    </div>
+                    
+                    {/* Çoklu Seçim için Kaydet Butonu */}
+                    {selectedSalesMethods.length > 0 && (
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleAssignSalesMethod}
+                          disabled={selectedSalesMethods.length === 0}
+                          loading={assignSalesMethodMutation.isPending}
+                        >
+                          {selectedSalesMethods.length > 0 
+                            ? `${selectedSalesMethods.length} Satış Yöntemini ${isApplyingToAllBranches ? 'Tüm Şubelere' : 'Ata'}`
+                            : 'Satış Yöntemi Seçin'
+                          }
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
