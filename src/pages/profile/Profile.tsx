@@ -31,19 +31,21 @@ export const Profile: React.FC = () => {
 
   // Load user company branches
   useEffect(() => {
-    if (user?._id) {
+    const userId = user?._id || user?.id;
+    if (userId) {
       const loadUserCompanyBranches = async () => {
         try {
-          const res = await userCompanyBranchApi.getUserCompanies(user._id);
+          const res = await userCompanyBranchApi.getUserCompanies(userId);
           setUserCompanyBranches(res.userCompanyBranches.filter(ucb => ucb.isActive));
         } catch (error) {
-          console.error('User company branches yüklenemedi:', error);
           setUserCompanyBranches([]);
         }
       };
       loadUserCompanyBranches();
+    } else {
+      setUserCompanyBranches([]);
     }
-  }, [user?._id]);
+  }, [user?._id, user?.id]);
 
   // Get primary company and branch
   const getPrimaryCompanyBranch = () => {

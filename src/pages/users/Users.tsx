@@ -64,12 +64,15 @@ export const Users: React.FC = () => {
         const branchesMap: Record<string, UserCompanyBranch[]> = {};
         await Promise.all(
           usersData.users.map(async (user: User) => {
+            const userId = user._id || user.id;
+            if (!userId) {
+              return; // Kullanıcı ID'si yoksa atla
+            }
             try {
-              const res = await userCompanyBranchApi.getUserCompanies(user._id);
-              branchesMap[user._id] = res.userCompanyBranches.filter(ucb => ucb.isActive);
+              const res = await userCompanyBranchApi.getUserCompanies(userId);
+              branchesMap[userId] = res.userCompanyBranches.filter(ucb => ucb.isActive);
             } catch (error) {
-              console.error(`User ${user._id} company branches yüklenemedi:`, error);
-              branchesMap[user._id] = [];
+              branchesMap[userId] = [];
             }
           })
         );
@@ -137,18 +140,21 @@ export const Users: React.FC = () => {
       setAssignFormData({ company: '', branch: '', isManager: false, managerType: '' });
       if (selectedUser) {
         // Refresh user's company branches
-        userCompanyBranchApi.getUserCompanies(selectedUser._id).then(res => {
-          setUserCompanyBranches(prev => ({
-            ...prev,
-            [selectedUser._id]: res.userCompanyBranches.filter(ucb => ucb.isActive)
-          }));
-        });
+        const userId = selectedUser._id || selectedUser.id;
+        if (userId) {
+          userCompanyBranchApi.getUserCompanies(userId).then(res => {
+            setUserCompanyBranches(prev => ({
+              ...prev,
+              [userId]: res.userCompanyBranches.filter(ucb => ucb.isActive)
+            }));
+          }).catch(() => {
+            // Hata durumunda sessizce atla
+          });
+        }
       }
       showToast('Kullanıcı başarıyla atandı.', 'success');
     },
     onError: (error: any) => {
-      console.error('Kullanıcı atama hatası:', error);
-      
       // Backend'den gelen hata mesajını kontrol et
       let errorMessage = 'Kullanıcı atanırken bir hata oluştu.';
       
@@ -180,6 +186,7 @@ export const Users: React.FC = () => {
   // Get primary company and branch for display
   const getPrimaryCompanyBranch = useMemo(() => {
     return (userId: string) => {
+      if (!userId) return { company: null, branch: null };
       const branches = userCompanyBranches[userId] || [];
       if (branches.length === 0) return { company: null, branch: null };
       
@@ -266,8 +273,14 @@ export const Users: React.FC = () => {
       return;
     }
     
+    const userId = selectedUser._id || selectedUser.id;
+    if (!userId) {
+      showToast('Kullanıcı ID\'si bulunamadı.', 'error');
+      return;
+    }
+    
     assignUserMutation.mutate({
-      user: selectedUser._id,
+      user: userId,
       company: assignFormData.company,
       branch: assignFormData.branch || null,
       isManager: assignFormData.isManager,
@@ -299,7 +312,8 @@ export const Users: React.FC = () => {
       key: 'company' as keyof User, 
       title: 'Şirket',
       render: (_value: any, user: User) => {
-        const { company } = getPrimaryCompanyBranch(user._id);
+        const userId = user._id || user.id;
+        const { company } = getPrimaryCompanyBranch(userId || '');
         return company?.name || '-';
       }
     },
@@ -307,7 +321,8 @@ export const Users: React.FC = () => {
       key: 'branch' as keyof User, 
       title: 'Şube',
       render: (_value: any, user: User) => {
-        const { branch } = getPrimaryCompanyBranch(user._id);
+        const userId = user._id || user.id;
+        const { branch } = getPrimaryCompanyBranch(userId || '');
         return branch?.name || '-';
       }
     },
