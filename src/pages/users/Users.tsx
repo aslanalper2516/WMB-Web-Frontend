@@ -14,6 +14,130 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { UserPlus, Building2, MapPin } from 'lucide-react';
 import type { User, RegisterRequest, UpdateUserRequest, Company, Branch, Role, UserCompanyBranch } from '../../types';
 
+// Error handling helper function
+const getErrorMessage = (error: any, defaultMessage: string = 'Bir hata oluştu.'): string => {
+  // Network hatası
+  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    return 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.';
+  }
+
+  // Timeout hatası
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
+  }
+
+  // HTTP hata yanıtı var
+  if (error.response) {
+    const status = error.response.status;
+    const errorData = error.response.data;
+
+    // 400 - Bad Request (Validation errors)
+    if (status === 400) {
+      if (typeof errorData === 'string') {
+        return errorData;
+      }
+      if (errorData?.message) {
+        return errorData.message;
+      }
+      if (errorData?.error) {
+        return errorData.error;
+      }
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        return `Validasyon hataları: ${errorData.errors.map((e: any) => e.message || e).join(', ')}`;
+      }
+      if (errorData?.errors && typeof errorData.errors === 'object') {
+        const validationErrors = Object.entries(errorData.errors)
+          .map(([key, value]: [string, any]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+          .join('; ');
+        return `Validasyon hataları: ${validationErrors}`;
+      }
+      return 'Geçersiz istek. Lütfen bilgileri kontrol edin.';
+    }
+
+    // 401 - Unauthorized
+    if (status === 401) {
+      return 'Yetkiniz bulunmuyor. Lütfen giriş yapın.';
+    }
+
+    // 403 - Forbidden
+    if (status === 403) {
+      return 'Bu işlem için yetkiniz bulunmuyor.';
+    }
+
+    // 404 - Not Found
+    if (status === 404) {
+      return 'İstenen kayıt bulunamadı.';
+    }
+
+    // 409 - Conflict (Duplicate entry)
+    if (status === 409) {
+      if (typeof errorData === 'string' && (errorData.includes('zaten') || errorData.includes('atanmış'))) {
+        return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+      }
+      return errorData?.message || errorData?.error || 'Bu kayıt zaten mevcut.';
+    }
+
+    // 500 - Internal Server Error
+    if (status === 500) {
+      // Backend log'undan bilinen hatalar için özel mesajlar
+      const errorText = typeof errorData === 'string' ? errorData : (errorData?.message || errorData?.error || '');
+      if (errorText.includes('zaten') || errorText.includes('atanmış') || errorText === 'Internal Server Error') {
+        return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+      }
+      return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+    }
+
+    // Diğer 5xx hatalar
+    if (status >= 500) {
+      return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+    }
+
+    // 4xx hatalar (diğer)
+    if (status >= 400 && status < 500) {
+      if (typeof errorData === 'string') {
+        return errorData;
+      }
+      return errorData?.message || errorData?.error || 'İstek hatası. Lütfen bilgileri kontrol edin.';
+    }
+
+    // Response data parse et
+    if (typeof errorData === 'string') {
+      return errorData;
+    }
+    if (errorData?.message) {
+      return errorData.message;
+    }
+    if (errorData?.error) {
+      return errorData.error;
+    }
+  }
+
+  // Error message var mı kontrol et
+  if (error.message) {
+    return error.message;
+  }
+
+  return defaultMessage;
+};
+
+// Detaylı error logging (development için)
+const logError = (error: any, context: string) => {
+  if (import.meta.env.DEV) {
+    console.error(`[${context}] Error Details:`, {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      request: {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data
+      }
+    });
+  }
+};
+
 export const Users: React.FC = () => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -62,7 +186,7 @@ export const Users: React.FC = () => {
     if (usersData?.users) {
       const loadUserCompanyBranches = async () => {
         const branchesMap: Record<string, UserCompanyBranch[]> = {};
-        await Promise.all(
+        await Promise.allSettled(
           usersData.users.map(async (user: User) => {
             const userId = user._id || user.id;
             if (!userId) {
@@ -70,8 +194,10 @@ export const Users: React.FC = () => {
             }
             try {
               const res = await userCompanyBranchApi.getUserCompanies(userId);
-              branchesMap[userId] = res.userCompanyBranches.filter(ucb => ucb.isActive);
+              branchesMap[userId] = res?.userCompanyBranches?.filter(ucb => ucb.isActive) || [];
             } catch (error) {
+              // Hata durumunda sessizce boş array set et
+              logError(error, `Load User Company Branches for User ${userId}`);
               branchesMap[userId] = [];
             }
           })
@@ -92,8 +218,9 @@ export const Users: React.FC = () => {
       showToast('Kullanıcı başarıyla oluşturuldu.', 'success');
     },
     onError: (error: any) => {
-      console.error('Kullanıcı oluşturma hatası:', error);
-      showToast(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`, 'error');
+      logError(error, 'Create User');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı oluşturulurken bir hata oluştu.');
+      showToast(errorMessage, 'error');
     },
   });
 
@@ -109,8 +236,9 @@ export const Users: React.FC = () => {
       showToast('Kullanıcı başarıyla güncellendi.', 'success');
     },
     onError: (error: any) => {
-      console.error('Kullanıcı güncelleme hatası:', error);
-      showToast(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`, 'error');
+      logError(error, 'Update User');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı güncellenirken bir hata oluştu.');
+      showToast(errorMessage, 'error');
     },
   });
 
@@ -124,8 +252,9 @@ export const Users: React.FC = () => {
       showToast('Kullanıcı başarıyla silindi.', 'success');
     },
     onError: (error: any) => {
-      console.error('Kullanıcı silme hatası:', error);
-      showToast(`Hata: ${error.response?.data?.error || error.message || 'Bilinmeyen hata'}`, 'error');
+      logError(error, 'Delete User');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı silinirken bir hata oluştu.');
+      showToast(errorMessage, 'error');
     },
   });
 
@@ -142,43 +271,24 @@ export const Users: React.FC = () => {
         // Refresh user's company branches
         const userId = selectedUser._id || selectedUser.id;
         if (userId) {
-          userCompanyBranchApi.getUserCompanies(userId).then(res => {
-            setUserCompanyBranches(prev => ({
-              ...prev,
-              [userId]: res.userCompanyBranches.filter(ucb => ucb.isActive)
-            }));
-          }).catch(() => {
-            // Hata durumunda sessizce atla
-          });
+          userCompanyBranchApi.getUserCompanies(userId)
+            .then(res => {
+              setUserCompanyBranches(prev => ({
+                ...prev,
+                [userId]: res?.userCompanyBranches?.filter(ucb => ucb.isActive) || []
+              }));
+            })
+            .catch((error) => {
+              // Hata durumunda sessizce atla (zaten toast gösterildi)
+              logError(error, `Refresh User Company Branches for User ${userId}`);
+            });
         }
       }
       showToast('Kullanıcı başarıyla atandı.', 'success');
     },
     onError: (error: any) => {
-      // Backend'den gelen hata mesajını kontrol et
-      let errorMessage = 'Kullanıcı atanırken bir hata oluştu.';
-      
-      if (error.response?.data) {
-        // Backend'den gelen mesaj string ise
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } 
-        // Backend'den gelen mesaj object içindeyse
-        else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } 
-        else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Eğer kullanıcı zaten atanmışsa, daha açıklayıcı bir mesaj göster
-      if (errorMessage.includes('zaten') || errorMessage.includes('atanmış')) {
-        errorMessage = 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
-      }
-      
+      logError(error, 'Assign User to Company/Branch');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı atanırken bir hata oluştu.');
       showToast(errorMessage, 'error');
     },
   });
