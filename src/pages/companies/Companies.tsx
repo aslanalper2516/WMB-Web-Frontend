@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyBranchApi } from '../../api/companyBranch';
 import { authApi } from '../../api/auth';
+import { userCompanyBranchApi } from '../../api/userCompanyBranch';
 import { turkiyeApi, type Province, type District, type Neighborhood } from '../../api/turkiyeApi.ts';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -10,7 +11,7 @@ import { Table } from '../../components/ui/Table';
 import { useToast } from '../../components/ui/Toast';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, UserCog } from 'lucide-react';
-import type { Company, CreateCompanyRequest } from '../../types';
+import type { Company, CreateCompanyRequest, UserCompanyBranch } from '../../types';
 
 export const Companies: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -18,6 +19,7 @@ export const Companies: React.FC = () => {
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedManager, setSelectedManager] = useState<string>('');
+  const [companyManager, setCompanyManager] = useState<UserCompanyBranch | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<CreateCompanyRequest>({
     name: '',
@@ -99,12 +101,7 @@ export const Companies: React.FC = () => {
 
   const { data: usersData } = useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      const result = await authApi.getUsers();
-      console.log('📋 Users data received:', result);
-      console.log('👤 First user:', result.users[0]);
-      return result;
-    },
+    queryFn: () => authApi.getUsers(),
   });
 
   const createMutation = useMutation({
@@ -143,17 +140,77 @@ export const Companies: React.FC = () => {
   });
 
   const assignManagerMutation = useMutation({
-    mutationFn: ({ id, managerId }: { id: string; managerId: string }) => {
-      console.log('🔍 Assigning manager:', { id, managerId, type: typeof managerId });
-      const payload = { manager: managerId };
-      console.log('📦 Payload:', payload);
-      return companyBranchApi.updateCompany(id, payload);
+    mutationFn: ({ userId, companyId }: { userId: string; companyId: string }) => {
+      const requestData: any = {
+        user: userId,
+        company: companyId,
+        isManager: true,
+        managerType: 'company'
+      };
+      return userCompanyBranchApi.assignUserToCompanyBranch(requestData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
+      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
       setIsManagerModalOpen(false);
       setSelectedManager('');
       setSelectedCompany(null);
+      setCompanyManager(null);
+      showToast('Yönetici başarıyla atandı.', 'success');
+    },
+    onError: (error: any) => {
+      console.error('Yönetici atama hatası:', error);
+      
+      // Backend'den gelen hata mesajını kontrol et
+      let errorMessage = 'Yönetici atanırken bir hata oluştu.';
+      
+      // Tüm olası hata mesajı kaynaklarını kontrol et
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // String formatı
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } 
+        // Object formatı
+        else if (typeof errorData === 'object') {
+          errorMessage = errorData.message || 
+                        errorData.error || 
+                        errorData.errors?.[0]?.message ||
+                        JSON.stringify(errorData);
+        }
+      } 
+      // Error object'inin kendisinde mesaj varsa
+      else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Backend log'undan bilinen hatalar için özel mesajlar
+      if (errorMessage === 'Internal Server Error' || 
+          error.response?.status === 500) {
+        // 500 hatası genellikle duplicate kayıt veya validation hatası anlamına gelir
+        // Backend'den gelen log'a göre "Bu kullanıcı zaten bu şirket/şubeye atanmış" hatası
+        errorMessage = 'Bu kullanıcı zaten bu şirkete atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+      }
+      // Eğer hata mesajında "zaten" veya "atanmış" geçiyorsa
+      else if (errorMessage.includes('zaten') || errorMessage.includes('atanmış')) {
+        errorMessage = 'Bu kullanıcı zaten bu şirkete atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+      }
+      
+      showToast(errorMessage, 'error');
+      
+      // Detaylı hata loglama
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        request: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        }
+      });
     },
   });
 
@@ -195,15 +252,37 @@ export const Companies: React.FC = () => {
     }
   };
 
-  const openManagerModal = (company: Company) => {
+  const openManagerModal = async (company: Company) => {
     setSelectedCompany(company);
     setSelectedManager('');
     setIsManagerModalOpen(true);
+    
+    // Mevcut yöneticiyi yükle
+    try {
+      const res = await userCompanyBranchApi.getCompanyUsers(company._id);
+      if (res && res.userCompanyBranches && Array.isArray(res.userCompanyBranches)) {
+        const manager = res.userCompanyBranches.find(
+          (ucb: UserCompanyBranch) => 
+            ucb.isManager && 
+            ucb.managerType === 'company' && 
+            (!ucb.branch || typeof ucb.branch === 'string')
+        );
+        setCompanyManager(manager || null);
+      } else {
+        setCompanyManager(null);
+      }
+    } catch (error) {
+      console.error('Yönetici yüklenemedi:', error);
+      setCompanyManager(null);
+    }
   };
 
   const handleAssignManager = () => {
     if (selectedCompany && selectedManager) {
-      assignManagerMutation.mutate({ id: selectedCompany._id, managerId: selectedManager });
+      assignManagerMutation.mutate({ 
+        userId: selectedManager, 
+        companyId: selectedCompany._id 
+      });
     }
   };
 
@@ -647,11 +726,10 @@ export const Companies: React.FC = () => {
                 Yönetici Ata: {selectedCompany?.name}
               </h3>
               <div className="space-y-4">
-                {selectedCompany?.manager && (() => {
-                  const managerId = typeof selectedCompany.manager === 'string' 
-                    ? selectedCompany.manager 
-                    : (selectedCompany.manager._id || selectedCompany.manager.id);
-                  const managerUser = usersData?.users.find(u => (u._id || u.id) === managerId);
+                {companyManager && (() => {
+                  const managerUser = typeof companyManager.user === 'string' 
+                    ? usersData?.users.find(u => (u._id || u.id) === companyManager.user)
+                    : companyManager.user;
                   
                   return (
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
@@ -685,16 +763,12 @@ export const Companies: React.FC = () => {
                   </label>
                   <select
                     value={selectedManager}
-                    onChange={(e) => {
-                      console.log('🎯 Selected manager ID:', e.target.value);
-                      setSelectedManager(e.target.value);
-                    }}
+                    onChange={(e) => setSelectedManager(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Yönetici Seçin</option>
                     {usersData?.users.map((user) => {
                       const userId = user._id || user.id;
-                      console.log('👤 User option:', { id: user.id, _id: user._id, userId, name: user.name });
                       return (
                         <option key={userId} value={userId}>
                           {user.name} ({user.email})

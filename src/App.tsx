@@ -236,13 +236,13 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
+      <AuthProvider>
           <ToastProvider>
             <ConfirmDialogProvider>
-              <AppContent />
+        <AppContent />
             </ConfirmDialogProvider>
           </ToastProvider>
-        </AuthProvider>
+      </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

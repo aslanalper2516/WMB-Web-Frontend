@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyBranchApi } from '../../api/companyBranch';
+import { userCompanyBranchApi } from '../../api/userCompanyBranch';
 import { categoryProductApi } from '../../api/categoryProduct';
 import { authApi } from '../../api/auth';
 import { turkiyeApi, type Province, type District, type Neighborhood } from '../../api/turkiyeApi';
@@ -12,7 +13,7 @@ import { Table } from '../../components/ui/Table';
 import { useToast } from '../../components/ui/Toast';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, ShoppingCart, UserCog, ChevronDown, ChevronRight, Folder, FileText } from 'lucide-react';
-import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod, SalesMethodCategory } from '../../types';
+import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod, SalesMethodCategory, UserCompanyBranch } from '../../types';
 
 export const Branches: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -21,6 +22,7 @@ export const Branches: React.FC = () => {
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [selectedManager, setSelectedManager] = useState<string>('');
+  const [branchManager, setBranchManager] = useState<UserCompanyBranch | null>(null);
   const [formData, setFormData] = useState<CreateBranchRequest>({
     name: '',
     phone: '',
@@ -113,12 +115,7 @@ export const Branches: React.FC = () => {
 
   const { data: usersData } = useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      const result = await authApi.getUsers();
-      console.log('📋 Users data received (Branch):', result);
-      console.log('👤 First user (Branch):', result.users[0]);
-      return result;
-    },
+    queryFn: () => authApi.getUsers(),
   });
 
   // Satış yöntemi kategorilerini yükle
@@ -161,17 +158,78 @@ export const Branches: React.FC = () => {
   });
 
   const assignManagerMutation = useMutation({
-    mutationFn: ({ id, managerId }: { id: string; managerId: string }) => {
-      console.log('🔍 Assigning manager to branch:', { id, managerId, type: typeof managerId });
-      const payload = { manager: managerId };
-      console.log('📦 Payload:', payload);
-      return companyBranchApi.updateBranch(id, payload);
+    mutationFn: ({ userId, companyId, branchId }: { userId: string; companyId: string; branchId: string }) => {
+      const requestData = {
+        user: userId,
+        company: companyId,
+        branch: branchId,
+        isManager: true,
+        managerType: 'branch' as 'branch'
+      };
+      return userCompanyBranchApi.assignUserToCompanyBranch(requestData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['branches'] });
+      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
       setIsManagerModalOpen(false);
       setSelectedManager('');
       setSelectedBranch(null);
+      setBranchManager(null);
+      showToast('Yönetici başarıyla atandı.', 'success');
+    },
+    onError: (error: any) => {
+      console.error('Yönetici atama hatası:', error);
+      
+      // Backend'den gelen hata mesajını kontrol et
+      let errorMessage = 'Yönetici atanırken bir hata oluştu.';
+      
+      // Tüm olası hata mesajı kaynaklarını kontrol et
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // String formatı
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } 
+        // Object formatı
+        else if (typeof errorData === 'object') {
+          errorMessage = errorData.message || 
+                        errorData.error || 
+                        errorData.errors?.[0]?.message ||
+                        JSON.stringify(errorData);
+        }
+      } 
+      // Error object'inin kendisinde mesaj varsa
+      else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Backend log'undan bilinen hatalar için özel mesajlar
+      if (errorMessage === 'Internal Server Error' || 
+          error.response?.status === 500) {
+        // 500 hatası genellikle duplicate kayıt veya validation hatası anlamına gelir
+        // Backend'den gelen log'a göre "Bu kullanıcı zaten bu şirket/şubeye atanmış" hatası
+        errorMessage = 'Bu kullanıcı zaten bu şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+      }
+      // Eğer hata mesajında "zaten" veya "atanmış" geçiyorsa
+      else if (errorMessage.includes('zaten') || errorMessage.includes('atanmış')) {
+        errorMessage = 'Bu kullanıcı zaten bu şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+      }
+      
+      showToast(errorMessage, 'error');
+      
+      // Detaylı hata loglama
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers,
+        request: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        }
+      });
     },
   });
 
@@ -219,15 +277,43 @@ export const Branches: React.FC = () => {
     }
   };
 
-  const openManagerModal = (branch: Branch) => {
+  const openManagerModal = async (branch: Branch) => {
     setSelectedBranch(branch);
     setSelectedManager('');
     setIsManagerModalOpen(true);
+    
+    // Mevcut yöneticiyi yükle
+    try {
+      const companyId = typeof branch.company === 'string' ? branch.company : branch.company._id;
+      const res = await userCompanyBranchApi.getCompanyUsers(companyId, branch._id);
+      if (res && res.userCompanyBranches && Array.isArray(res.userCompanyBranches)) {
+        const manager = res.userCompanyBranches.find(
+          (ucb: UserCompanyBranch) => 
+            ucb.isManager && 
+            ucb.managerType === 'branch' && 
+            ucb.branch && 
+            (typeof ucb.branch === 'string' ? ucb.branch === branch._id : ucb.branch._id === branch._id)
+        );
+        setBranchManager(manager || null);
+      } else {
+        setBranchManager(null);
+      }
+    } catch (error) {
+      console.error('Yönetici yüklenemedi:', error);
+      setBranchManager(null);
+    }
   };
 
   const handleAssignManager = () => {
     if (selectedBranch && selectedManager) {
-      assignManagerMutation.mutate({ id: selectedBranch._id, managerId: selectedManager });
+      const companyId = typeof selectedBranch.company === 'string' 
+        ? selectedBranch.company 
+        : selectedBranch.company._id;
+      assignManagerMutation.mutate({ 
+        userId: selectedManager, 
+        companyId: companyId,
+        branchId: selectedBranch._id
+      });
     }
   };
 
@@ -428,7 +514,6 @@ export const Branches: React.FC = () => {
           .filter(Boolean);
         
         if (errors.length > 0) {
-          console.warn('Bazı şubelerde hata oluştu:', errors);
           showToast(`Satış yöntemleri atandı. Bazı şubelerde hata oluştu: ${errors.map((e: any) => e.branch).join(', ')}`, 'warning');
         } else {
           showToast('Satış yöntemleri tüm şubelere başarıyla atandı!', 'success');
@@ -945,12 +1030,12 @@ export const Branches: React.FC = () => {
                                       <ChevronRight className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                                     )}
                                     <Folder className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-                                    <div>
+                          <div>
                                       <h3 className="font-semibold text-gray-900 dark:text-white">{category.name}</h3>
                                       {category.description && (
                                         <p className="text-sm text-gray-500 dark:text-gray-400">{category.description}</p>
-                                      )}
-                                    </div>
+                            )}
+                          </div>
                                     <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
                                       {branchSalesMethods.length} satış yöntemi
                                     </span>
@@ -994,17 +1079,17 @@ export const Branches: React.FC = () => {
                                               </div>
                                             </div>
                                             <div className="flex items-center space-x-2 ml-4">
-                                              <Button
-                                                size="sm"
-                                                variant="danger"
+                          <Button
+                            size="sm"
+                            variant="danger"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   handleRemoveSalesMethod(salesMethod._id);
                                                 }}
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                            </div>
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                                           </div>
                                         </div>
                                       );
@@ -1044,7 +1129,7 @@ export const Branches: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                  </div>
+                    </div>
                   
                   {/* Seçili Kategorinin Satış Yöntemleri */}
                   {selectedCategoryId && (
@@ -1106,8 +1191,8 @@ export const Branches: React.FC = () => {
                                       <p className="text-xs text-gray-500 dark:text-gray-400">
                                         {method.description}
                                       </p>
-                                    )}
-                                  </div>
+                  )}
+                </div>
                                 </label>
                               );
                             })}
@@ -1148,23 +1233,23 @@ export const Branches: React.FC = () => {
                   {/* Çoklu Seçim için Kaydet Butonu */}
                   {selectedSalesMethods.length > 0 && (
                     <div className="flex justify-end">
-                        <Button
+                    <Button
                           onClick={handleAssignSalesMethod}
                           disabled={selectedSalesMethods.length === 0}
-                          loading={assignSalesMethodMutation.isPending}
-                        >
+                      loading={assignSalesMethodMutation.isPending}
+                    >
                           {selectedSalesMethods.length > 0 
                             ? `${selectedSalesMethods.length} Satış Yöntemini ${isApplyingToAllBranches ? 'Tüm Şubelere' : 'Ata'}`
                             : 'Satış Yöntemi Seçin'
                           }
-                        </Button>
+                    </Button>
                       </div>
                     )}
-                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
       )}
 
       {/* Manager Modal */}
@@ -1176,11 +1261,10 @@ export const Branches: React.FC = () => {
                 Yönetici Ata: {selectedBranch?.name}
               </h3>
               <div className="space-y-4">
-                {selectedBranch?.manager && (() => {
-                  const managerId = typeof selectedBranch.manager === 'string' 
-                    ? selectedBranch.manager 
-                    : (selectedBranch.manager._id || selectedBranch.manager.id);
-                  const managerUser = usersData?.users.find(u => (u._id || u.id) === managerId);
+                {branchManager && (() => {
+                  const managerUser = typeof branchManager.user === 'string' 
+                    ? usersData?.users.find(u => (u._id || u.id) === branchManager.user)
+                    : branchManager.user;
                   
                   return (
                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-4">
@@ -1214,16 +1298,12 @@ export const Branches: React.FC = () => {
                   </label>
                   <select
                     value={selectedManager}
-                    onChange={(e) => {
-                      console.log('🎯 Selected manager ID (Branch):', e.target.value);
-                      setSelectedManager(e.target.value);
-                    }}
+                    onChange={(e) => setSelectedManager(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Yönetici Seçin</option>
                     {usersData?.users.map((user) => {
                       const userId = user._id || user.id;
-                      console.log('👤 User option (Branch):', { id: user.id, _id: user._id, userId, name: user.name });
                       return (
                         <option key={userId} value={userId}>
                           {user.name} ({user.email})
@@ -1237,10 +1317,11 @@ export const Branches: React.FC = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
+                      onClick={() => {
                       setIsManagerModalOpen(false);
                       setSelectedManager('');
                       setSelectedBranch(null);
+                      setBranchManager(null);
                     }}
                   >
                     İptal

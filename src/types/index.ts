@@ -6,8 +6,6 @@ export interface User {
   email: string;
   phone?: string;
   role: string | { _id: string; name: string };
-  branch?: string | { _id: string; name: string };
-  company?: string | { _id: string; name: string };
   createdAt: string;
   updatedAt?: string;
 }
@@ -22,8 +20,6 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role: string;
-  branch?: string;
-  company?: string;
 }
 
 export interface UpdateUserRequest {
@@ -31,8 +27,6 @@ export interface UpdateUserRequest {
   email?: string;
   password?: string;
   role?: string;
-  branch?: string;
-  company?: string;
 }
 
 export interface AuthResponse {
@@ -79,9 +73,6 @@ export interface Company {
   district?: string;
   neighborhood?: string;
   street?: string;
-  manager?: string | User;
-  managerEmail?: string;
-  managerPhone?: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -99,9 +90,6 @@ export interface Branch {
   neighborhood?: string;
   street?: string;
   address: string;
-  manager?: string | User;
-  managerEmail?: string;
-  managerPhone?: string;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -116,9 +104,6 @@ export interface CreateCompanyRequest {
   neighborhood?: string;
   street?: string;
   address?: string;
-  manager?: string; // User ID
-  managerEmail?: string;
-  managerPhone?: string;
 }
 
 export interface CreateBranchRequest {
@@ -132,9 +117,6 @@ export interface CreateBranchRequest {
   neighborhood?: string;
   street?: string;
   address: string;
-  manager?: string; // User ID
-  managerEmail?: string;
-  managerPhone?: string;
 }
 
 // Category Product Types
@@ -404,4 +386,33 @@ export interface CreateProductKitchenRequest {
 export interface MenuStructure {
   menu: Menu;
   categories: (MenuCategory & { products: MenuProduct[] })[];
+}
+
+// User Company Branch Types
+export interface UserCompanyBranch {
+  _id: string;
+  id: string;
+  user: string | User;
+  company: string | Company;
+  branch?: string | Branch | null;
+  isManager: boolean;
+  managerType?: 'company' | 'branch' | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateUserCompanyBranchRequest {
+  user: string;
+  company: string;
+  branch?: string | null;
+  isManager?: boolean;
+  managerType?: 'company' | 'branch';
+}
+
+export interface UpdateUserCompanyBranchRequest {
+  branch?: string | null;
+  isManager?: boolean;
+  managerType?: 'company' | 'branch';
+  isActive?: boolean;
 }

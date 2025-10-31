@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { userCompanyBranchApi } from '../../api/userCompanyBranch';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { User, Mail, Shield, Building2, MapPin } from 'lucide-react';
+import type { UserCompanyBranch } from '../../types';
 
 export const Profile: React.FC = () => {
   const { user, updateProfile, changePassword } = useAuth();
@@ -12,6 +14,7 @@ export const Profile: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [userCompanyBranches, setUserCompanyBranches] = useState<UserCompanyBranch[]>([]);
 
   // Profile form states
   const [profileData, setProfileData] = useState({
@@ -25,6 +28,48 @@ export const Profile: React.FC = () => {
     newPassword: '',
     confirmPassword: '',
   });
+
+  // Load user company branches
+  useEffect(() => {
+    if (user?._id) {
+      const loadUserCompanyBranches = async () => {
+        try {
+          const res = await userCompanyBranchApi.getUserCompanies(user._id);
+          setUserCompanyBranches(res.userCompanyBranches.filter(ucb => ucb.isActive));
+        } catch (error) {
+          console.error('User company branches yüklenemedi:', error);
+          setUserCompanyBranches([]);
+        }
+      };
+      loadUserCompanyBranches();
+    }
+  }, [user?._id]);
+
+  // Get primary company and branch
+  const getPrimaryCompanyBranch = () => {
+    if (userCompanyBranches.length === 0) return { company: null, branch: null };
+    
+    // Priority: manager company > manager branch > first active
+    const managerCompany = userCompanyBranches.find(ucb => ucb.isManager && ucb.managerType === 'company' && !ucb.branch);
+    if (managerCompany) {
+      const company = typeof managerCompany.company === 'string' ? null : managerCompany.company;
+      return { company, branch: null };
+    }
+    
+    const managerBranch = userCompanyBranches.find(ucb => ucb.isManager && ucb.managerType === 'branch' && ucb.branch);
+    if (managerBranch) {
+      const company = typeof managerBranch.company === 'string' ? null : managerBranch.company;
+      const branch = typeof managerBranch.branch === 'string' || !managerBranch.branch ? null : managerBranch.branch;
+      return { company, branch };
+    }
+    
+    const first = userCompanyBranches[0];
+    const company = typeof first.company === 'string' ? null : first.company;
+    const branch = typeof first.branch === 'string' || !first.branch ? null : first.branch;
+    return { company, branch };
+  };
+
+  const { company: primaryCompany, branch: primaryBranch } = getPrimaryCompanyBranch();
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,24 +180,24 @@ export const Profile: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                {user?.branch && (
+                {primaryBranch && (
                   <div className="flex items-center space-x-3">
                     <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Şube</p>
                       <p className="text-base font-medium text-gray-900 dark:text-white">
-                        {typeof user.branch === 'string' ? user.branch : user.branch.name}
+                        {primaryBranch.name}
                       </p>
                     </div>
                   </div>
                 )}
-                {user?.company && (
+                {primaryCompany && (
                   <div className="flex items-center space-x-3">
                     <Building2 className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Şirket</p>
                       <p className="text-base font-medium text-gray-900 dark:text-white">
-                        {typeof user.company === 'string' ? user.company : user.company.name}
+                        {primaryCompany.name}
                       </p>
                     </div>
                   </div>
