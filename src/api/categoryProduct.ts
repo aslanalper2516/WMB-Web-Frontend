@@ -11,8 +11,12 @@ import type {
   CreateProductPriceRequest,
   SalesMethod,
   CreateSalesMethodRequest,
+  UpdateSalesMethodRequest,
   BranchSalesMethod,
   CurrencyUnit,
+  SalesMethodCategory,
+  CreateSalesMethodCategoryRequest,
+  UpdateSalesMethodCategoryRequest,
 } from '../types';
 
 export const categoryProductApi = {
@@ -96,9 +100,35 @@ export const categoryProductApi = {
     return apiClient.delete<{ message: string }>(`/category-product/prices/${id}`);
   },
 
+  // Sales Method Categories
+  getSalesMethodCategories: async (): Promise<{ message: string; categories: SalesMethodCategory[] }> => {
+    return apiClient.get<{ message: string; categories: SalesMethodCategory[] }>('/category-product/sales-method-categories');
+  },
+
+  getSalesMethodCategoryById: async (id: string): Promise<{ message: string; category: SalesMethodCategory }> => {
+    return apiClient.get<{ message: string; category: SalesMethodCategory }>(`/category-product/sales-method-categories/${id}`);
+  },
+
+  createSalesMethodCategory: async (data: CreateSalesMethodCategoryRequest): Promise<{ message: string; category: SalesMethodCategory }> => {
+    return apiClient.post<{ message: string; category: SalesMethodCategory }>('/category-product/sales-method-categories', data);
+  },
+
+  updateSalesMethodCategory: async (id: string, data: UpdateSalesMethodCategoryRequest): Promise<{ message: string; category: SalesMethodCategory }> => {
+    return apiClient.put<{ message: string; category: SalesMethodCategory }>(`/category-product/sales-method-categories/${id}`, data);
+  },
+
+  deleteSalesMethodCategory: async (id: string): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(`/category-product/sales-method-categories/${id}`);
+  },
+
+  getCategorySalesMethods: async (categoryId: string): Promise<{ message: string; methods: SalesMethod[] }> => {
+    return apiClient.get<{ message: string; methods: SalesMethod[] }>(`/category-product/sales-method-categories/${categoryId}/methods`);
+  },
+
   // Sales Methods
-  getSalesMethods: async (): Promise<{ message: string; methods: SalesMethod[] }> => {
-    return apiClient.get<{ message: string; methods: SalesMethod[] }>('/category-product/sales-methods');
+  getSalesMethods: async (categoryId?: string): Promise<{ message: string; methods: SalesMethod[] }> => {
+    const url = categoryId ? `/category-product/sales-methods?category=${categoryId}` : '/category-product/sales-methods';
+    return apiClient.get<{ message: string; methods: SalesMethod[] }>(url);
   },
 
   getSalesMethodById: async (id: string): Promise<{ message: string; salesMethod: SalesMethod }> => {
@@ -109,7 +139,7 @@ export const categoryProductApi = {
     return apiClient.post<{ message: string; salesMethod: SalesMethod }>('/category-product/sales-methods', data);
   },
 
-  updateSalesMethod: async (id: string, data: Partial<CreateSalesMethodRequest>): Promise<{ message: string; salesMethod: SalesMethod }> => {
+  updateSalesMethod: async (id: string, data: UpdateSalesMethodRequest): Promise<{ message: string; salesMethod: SalesMethod }> => {
     return apiClient.put<{ message: string; salesMethod: SalesMethod }>(`/category-product/sales-methods/${id}`, data);
   },
 
@@ -124,6 +154,10 @@ export const categoryProductApi = {
 
   assignSalesMethodToBranch: async (branchId: string, data: { salesMethod: string }): Promise<{ message: string; branchSalesMethod: BranchSalesMethod }> => {
     return apiClient.post<{ message: string; branchSalesMethod: BranchSalesMethod }>(`/category-product/branches/${branchId}/sales-methods`, data);
+  },
+
+  assignSalesMethodsToBranch: async (branchId: string, data: { salesMethods: string[] }): Promise<{ message: string; assigned: BranchSalesMethod[]; errors?: Array<{ salesMethodId: string; error: string }> }> => {
+    return apiClient.post<{ message: string; assigned: BranchSalesMethod[]; errors?: Array<{ salesMethodId: string; error: string }> }>(`/category-product/branches/${branchId}/sales-methods`, data);
   },
 
   removeSalesMethodFromBranch: async (branchId: string, salesMethodId: string): Promise<{ message: string }> => {

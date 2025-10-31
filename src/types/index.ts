@@ -244,11 +244,32 @@ export interface CreateCurrencyUnitRequest {
   name: string;
 }
 
+export interface SalesMethodCategory {
+  _id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSalesMethodCategoryRequest {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateSalesMethodCategoryRequest {
+  name?: string;
+  description?: string;
+  isActive?: boolean;
+}
+
 export interface SalesMethod {
   _id: string;
   name: string;
   description?: string;
-  parent?: string | SalesMethod;
+  category: string | SalesMethodCategory;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -256,7 +277,14 @@ export interface SalesMethod {
 export interface CreateSalesMethodRequest {
   name: string;
   description?: string;
-  parent?: string;
+  category: string;
+}
+
+export interface UpdateSalesMethodRequest {
+  name?: string;
+  description?: string;
+  category?: string;
+  isActive?: boolean;
 }
 
 export interface CreateProductPriceRequest {

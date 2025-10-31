@@ -384,7 +384,8 @@ export const Products: React.FC = () => {
             _id: salesMethod._id,
             name: salesMethod.name || '',
             description: salesMethod.description,
-            parent: salesMethod.parent,
+            category: salesMethod.category,
+            isActive: salesMethod.isActive,
             createdAt: salesMethod.createdAt || '',
             updatedAt: salesMethod.updatedAt || '',
           } as SalesMethod;

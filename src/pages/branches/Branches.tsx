@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyBranchApi } from '../../api/companyBranch';
 import { categoryProductApi } from '../../api/categoryProduct';
@@ -9,8 +9,8 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
-import { Plus, Edit, Trash2, ShoppingCart, UserCog } from 'lucide-react';
-import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod } from '../../types';
+import { Plus, Edit, Trash2, ShoppingCart, UserCog, ChevronDown, ChevronRight, Folder, FileText } from 'lucide-react';
+import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod, SalesMethodCategory } from '../../types';
 
 export const Branches: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -32,7 +32,10 @@ export const Branches: React.FC = () => {
     address: '',
   });
   const [selectedSalesMethods, setSelectedSalesMethods] = useState<string[]>([]); // Çoklu seçim için
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(''); // Kategori seçimi
+  const [categorySalesMethods, setCategorySalesMethods] = useState<SalesMethod[]>([]); // Seçili kategorinin satış yöntemleri
   const [isApplyingToAllBranches, setIsApplyingToAllBranches] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set()); // Açık kategoriler
   
   // TurkiyeAPI state'leri
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -114,9 +117,10 @@ export const Branches: React.FC = () => {
     },
   });
 
-  const { data: salesMethodsData } = useQuery({
-    queryKey: ['salesMethods'],
-    queryFn: () => categoryProductApi.getSalesMethods(),
+  // Satış yöntemi kategorilerini yükle
+  const { data: categoriesData } = useQuery({
+    queryKey: ['sales-method-categories'],
+    queryFn: () => categoryProductApi.getSalesMethodCategories(),
   });
 
   const { data: branchSalesMethodsData, refetch: refetchBranchSalesMethods } = useQuery({
@@ -287,68 +291,163 @@ export const Branches: React.FC = () => {
     setIsSalesMethodsModalOpen(true);
     // State'leri temizle
     setSelectedSalesMethods([]);
+    setSelectedCategoryId('');
+    setCategorySalesMethods([]);
     setIsApplyingToAllBranches(false);
+    setExpandedCategories(new Set()); // Kategorileri sıfırla, ilk yüklemede açılacak
+  };
+
+  // Kategori seçildiğinde o kategorinin satış yöntemlerini yükle
+  const loadCategorySalesMethods = async (categoryId: string) => {
+    if (!categoryId) {
+      setCategorySalesMethods([]);
+      return;
+    }
+    try {
+      const response = await categoryProductApi.getCategorySalesMethods(categoryId);
+      // Şubeye atanmamış olanları filtrele
+      const availableMethods = response.methods.filter((sm: SalesMethod) => 
+        !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
+          bsm.salesMethod && bsm.salesMethod._id === sm._id
+        )
+      );
+      setCategorySalesMethods(availableMethods);
+    } catch (error) {
+      console.error('Kategori satış yöntemleri yüklenemedi:', error);
+      setCategorySalesMethods([]);
+    }
+  };
+
+  // Kategori değiştiğinde satış yöntemlerini yükle
+  useEffect(() => {
+    if (selectedCategoryId && isSalesMethodsModalOpen) {
+      loadCategorySalesMethods(selectedCategoryId);
+    }
+  }, [selectedCategoryId, isSalesMethodsModalOpen]);
+
+  // Modal açıldığında veya şube satış yöntemleri değiştiğinde listeyi yenile
+  useEffect(() => {
+    if (selectedCategoryId && isSalesMethodsModalOpen && branchSalesMethodsData) {
+      loadCategorySalesMethods(selectedCategoryId);
+    }
+  }, [branchSalesMethodsData, selectedCategoryId, isSalesMethodsModalOpen]);
+
+  // Şubeye atanmış satış yöntemlerini kategorilere göre grupla
+  const groupedBranchSalesMethods = useMemo(() => {
+    if (!categoriesData?.categories || !branchSalesMethodsData?.salesMethods) {
+      return [];
+    }
+
+    const validMethods = branchSalesMethodsData.salesMethods.filter(
+      (bsm: BranchSalesMethod) => bsm.salesMethod
+    );
+
+    return categoriesData.categories
+      .filter(cat => cat.isActive)
+      .map(category => {
+        const methods = validMethods.filter((bsm: BranchSalesMethod) => {
+          if (!bsm.salesMethod) return false;
+          const categoryId = typeof bsm.salesMethod.category === 'string' 
+            ? bsm.salesMethod.category 
+            : bsm.salesMethod.category?._id;
+          return categoryId === category._id;
+        });
+
+        return {
+          category,
+          branchSalesMethods: methods,
+        };
+      })
+      .filter(item => item.branchSalesMethods.length > 0) // Sadece satış yöntemi olan kategorileri göster
+      .sort((a, b) => a.category.name.localeCompare(b.category.name));
+  }, [categoriesData, branchSalesMethodsData]);
+
+  // İlk yüklemede tüm kategorileri aç
+  useEffect(() => {
+    if (groupedBranchSalesMethods.length > 0 && expandedCategories.size === 0 && isSalesMethodsModalOpen) {
+      setExpandedCategories(new Set(groupedBranchSalesMethods.map(item => item.category._id)));
+    }
+  }, [groupedBranchSalesMethods, isSalesMethodsModalOpen]);
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId);
+      } else {
+        newSet.add(categoryId);
+      }
+      return newSet;
+    });
   };
 
 
-  const handleAssignSalesMethod = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBranch) return;
+  const handleAssignSalesMethod = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedBranch || selectedSalesMethods.length === 0) return;
     
-    // Çoklu seçim modu: Seçilen satış yöntemlerini uygula
-    if (selectedSalesMethods.length > 0) {
-      try {
-        // Uygulanacak şubeleri belirle
-        const branchesToApply = isApplyingToAllBranches && selectedBranch.company
-          ? branchesData?.branches?.filter(b => {
-              const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
-              const selectedBranchCompanyId = typeof selectedBranch.company === 'string' 
-                ? selectedBranch.company 
-                : selectedBranch.company?._id;
-              return branchCompanyId === selectedBranchCompanyId;
-            }) || []
-          : [selectedBranch];
+    try {
+      if (isApplyingToAllBranches && selectedBranch.company) {
+        // Tüm şubelere uygula
+        const companyId = typeof selectedBranch.company === 'string' 
+          ? selectedBranch.company 
+          : selectedBranch.company?._id;
+        const companyBranches = branchesData?.branches?.filter(b => {
+          const branchCompanyId = typeof b.company === 'string' ? b.company : b.company?._id;
+          return branchCompanyId === companyId;
+        }) || [];
         
-        // Her satış yöntemi için her şubeye ata
-        for (const salesMethodId of selectedSalesMethods) {
-          for (const branch of branchesToApply) {
-            // Bu şubeye özel kontrol - eğer tüm şubelere uyguluyorsak her şubeyi kontrol et
-            if (isApplyingToAllBranches) {
-              // Her şube için ayrı kontrol
-              const branchSalesMethods = await categoryProductApi.getBranchSalesMethods(branch._id);
-              const alreadyAssigned = branchSalesMethods.salesMethods.some(
-                (bsm: BranchSalesMethod) => bsm.salesMethod && bsm.salesMethod._id === salesMethodId
-              );
-              
-              if (!alreadyAssigned) {
-                await categoryProductApi.assignSalesMethodToBranch(branch._id, { salesMethod: salesMethodId });
-              }
-            } else {
-              // Sadece seçili şubeye ata - zaten atanmış mı kontrol et
-              const isAlreadyAssigned = branchSalesMethodsData?.salesMethods?.some(
-                (bsm: BranchSalesMethod) => bsm.salesMethod && bsm.salesMethod._id === salesMethodId
-              );
-              
-              if (!isAlreadyAssigned) {
-                await categoryProductApi.assignSalesMethodToBranch(selectedBranch._id, { salesMethod: salesMethodId });
-              }
+        // Her şube için toplu atama
+        const results = await Promise.allSettled(
+          companyBranches.map(branch => 
+            categoryProductApi.assignSalesMethodsToBranch(branch._id, { salesMethods: selectedSalesMethods })
+          )
+        );
+        
+        const errors = results
+          .map((result, index) => {
+            if (result.status === 'rejected') {
+              return { branch: companyBranches[index].name, error: result.reason };
             }
-          }
-        }
+            if (result.value.errors && result.value.errors.length > 0) {
+              return { branch: companyBranches[index].name, errors: result.value.errors };
+            }
+            return null;
+          })
+          .filter(Boolean);
         
-        // Tüm şubeleri yeniden yükle
-        if (isApplyingToAllBranches) {
-          queryClient.invalidateQueries({ queryKey: ['branchSalesMethods'] });
+        if (errors.length > 0) {
+          console.warn('Bazı şubelerde hata oluştu:', errors);
+          alert(`Satış yöntemleri atandı. Bazı şubelerde hata oluştu: ${errors.map((e: any) => e.branch).join(', ')}`);
         } else {
-          refetchBranchSalesMethods();
+          alert('Satış yöntemleri tüm şubelere başarıyla atandı!');
         }
         
-        setSelectedSalesMethods([]);
-        setIsApplyingToAllBranches(false);
-      } catch (error) {
-        console.error('Satış yöntemi atama hatası:', error);
-        alert('Satış yöntemi atanırken bir hata oluştu!');
+        queryClient.invalidateQueries({ queryKey: ['branchSalesMethods'] });
+      } else {
+        // Sadece seçili şubeye ata
+        const result = await categoryProductApi.assignSalesMethodsToBranch(selectedBranch._id, { 
+          salesMethods: selectedSalesMethods 
+        });
+        
+        if (result.errors && result.errors.length > 0) {
+          const errorMessages = result.errors.map((e: any) => e.error).join(', ');
+          alert(`Satış yöntemleri atandı. Bazı hatalar oluştu: ${errorMessages}`);
+        } else {
+          alert('Satış yöntemleri başarıyla atandı!');
+        }
+        
+        refetchBranchSalesMethods();
       }
+      
+      // State'leri temizle
+      setSelectedSalesMethods([]);
+      setSelectedCategoryId('');
+      setCategorySalesMethods([]);
+      setIsApplyingToAllBranches(false);
+    } catch (error: any) {
+      console.error('Satış yöntemi atama hatası:', error);
+      alert(`Satış yöntemi atanırken bir hata oluştu: ${error.message || 'Bilinmeyen hata'}`);
     }
   };
 
@@ -802,33 +901,103 @@ export const Branches: React.FC = () => {
               </div>
               
               <div className="space-y-4">
-                {/* Mevcut Satış Yöntemleri */}
+                {/* Mevcut Satış Yöntemleri - Hiyerarşik Görünüm */}
                 <div>
-                  <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Mevcut Satış Yöntemleri</h4>
-                  {branchSalesMethodsData?.salesMethods && branchSalesMethodsData.salesMethods.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {branchSalesMethodsData.salesMethods
-                        .filter((branchSalesMethod: BranchSalesMethod) => branchSalesMethod.salesMethod) // null salesMethod'ları filtrele
-                        .map((branchSalesMethod: BranchSalesMethod) => (
-                        <div key={branchSalesMethod._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 flex justify-between items-center bg-white dark:bg-gray-700">
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{branchSalesMethod.salesMethod?.name || 'Bilinmeyen Satış Yöntemi'}</p>
-                            {branchSalesMethod.salesMethod?.description && (
-                              <p className="text-sm text-gray-500 dark:text-gray-400">{branchSalesMethod.salesMethod.description}</p>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => handleRemoveSalesMethod(branchSalesMethod.salesMethod?._id || '')}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
+                  <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">Mevcut Satış Yöntemleri</h4>
+                  {groupedBranchSalesMethods.length === 0 ? (
                     <p className="text-gray-500 dark:text-gray-400">Bu şubeye henüz satış yöntemi atanmamış.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {groupedBranchSalesMethods.map(({ category, branchSalesMethods }) => {
+                        const isExpanded = expandedCategories.has(category._id);
+                        return (
+                          <Card key={category._id} className="overflow-hidden">
+                            <CardContent className="p-0">
+                              {/* Kategori Header */}
+                              <div
+                                className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                                onClick={() => toggleCategory(category._id)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3 flex-1">
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                                    ) : (
+                                      <ChevronRight className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                                    )}
+                                    <Folder className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                                    <div>
+                                      <h3 className="font-semibold text-gray-900 dark:text-white">{category.name}</h3>
+                                      {category.description && (
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{category.description}</p>
+                                      )}
+                                    </div>
+                                    <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                                      {branchSalesMethods.length} satış yöntemi
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Kategori Altındaki Satış Yöntemleri */}
+                              {isExpanded && (
+                                <div className="bg-white dark:bg-gray-800">
+                                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    {branchSalesMethods.map((branchSalesMethod: BranchSalesMethod) => {
+                                      const salesMethod = branchSalesMethod.salesMethod;
+                                      if (!salesMethod) return null;
+                                      
+                                      return (
+                                        <div
+                                          key={branchSalesMethod._id}
+                                          className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                        >
+                                          <div className="flex items-start justify-between">
+                                            <div className="flex items-start space-x-3 flex-1">
+                                              <FileText className="h-5 w-5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                                              <div className="flex-1">
+                                                <div className="flex items-center space-x-2">
+                                                  <h4 className="font-medium text-gray-900 dark:text-white">{salesMethod.name}</h4>
+                                                  {salesMethod.isActive !== false && (
+                                                    <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                                      Aktif
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                {salesMethod.description && (
+                                                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{salesMethod.description}</p>
+                                                )}
+                                                {salesMethod.createdAt && (
+                                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                    Oluşturulma: {new Date(salesMethod.createdAt).toLocaleDateString('tr-TR')}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2 ml-4">
+                                              <Button
+                                                size="sm"
+                                                variant="danger"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleRemoveSalesMethod(salesMethod._id);
+                                                }}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 
@@ -836,32 +1005,62 @@ export const Branches: React.FC = () => {
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
                   <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">Yeni Satış Yöntemi Ata</h4>
                   
-                  {/* Çoklu Seçim Modu */}
-                  <div className="space-y-3 mb-4">
-                    <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md p-3">
-                      <p className="text-sm text-blue-800 dark:text-blue-400 mb-3">
-                        Birden fazla satış yöntemi seçerek toplu işlem yapabilirsiniz.
-                      </p>
-                      
-                      {/* Mevcut olmayan satış yöntemlerini listele */}
-                      {(() => {
-                        const availableMethods = salesMethodsData?.methods?.filter((sm: SalesMethod) => 
-                          !branchSalesMethodsData?.salesMethods?.some((bsm: BranchSalesMethod) => 
-                            bsm.salesMethod && bsm.salesMethod._id === sm._id
-                          )
-                        ) || [];
+                  {/* Kategori Seçimi */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Kategori Seçin *
+                    </label>
+                    <select
+                      value={selectedCategoryId}
+                      onChange={(e) => {
+                        setSelectedCategoryId(e.target.value);
+                        setSelectedSalesMethods([]); // Kategori değişince seçimleri temizle
+                      }}
+                      className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    >
+                      <option value="">Kategori Seçin</option>
+                      {categoriesData?.categories?.filter(cat => cat.isActive).map((category) => (
+                        <option key={category._id} value={category._id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Seçili Kategorinin Satış Yöntemleri */}
+                  {selectedCategoryId && (
+                    <div className="space-y-3 mb-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-md p-3">
+                        <div className="flex justify-between items-center mb-3">
+                          <p className="text-sm text-blue-800 dark:text-blue-400">
+                            Seçili kategorinin satış yöntemleri:
+                          </p>
+                          {categorySalesMethods.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedSalesMethods.length === categorySalesMethods.length) {
+                                  // Tümünü kaldır
+                                  setSelectedSalesMethods([]);
+                                } else {
+                                  // Tümünü seç
+                                  setSelectedSalesMethods(categorySalesMethods.map(m => m._id));
+                                }
+                              }}
+                              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              {selectedSalesMethods.length === categorySalesMethods.length ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+                            </button>
+                          )}
+                        </div>
                         
-                        if (availableMethods.length === 0) {
-                          return (
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Atanabilecek satış yöntemi kalmadı.
-                            </p>
-                          );
-                        }
-                        
-                        return (
+                        {categorySalesMethods.length === 0 ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {selectedCategoryId ? 'Bu kategoride atanabilecek satış yöntemi kalmadı.' : 'Önce bir kategori seçin.'}
+                          </p>
+                        ) : (
                           <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {availableMethods.map((method: SalesMethod) => {
+                            {categorySalesMethods.map((method: SalesMethod) => {
                               const isSelected = selectedSalesMethods.includes(method._id);
                               return (
                                 <label
@@ -894,13 +1093,14 @@ export const Branches: React.FC = () => {
                               );
                             })}
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
                     </div>
-                    
-                    {/* Tüm şubelere uygula checkbox'ı - sadece çoklu seçim modunda */}
-                    {selectedSalesMethods.length > 0 && selectedBranch?.company && (
-                      <div className="flex items-center space-x-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-md">
+                  )}
+                  
+                  {/* Tüm şubelere uygula checkbox'ı - sadece çoklu seçim modunda */}
+                  {selectedSalesMethods.length > 0 && selectedBranch?.company && (
+                    <div className="flex items-center space-x-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-md">
                         <input
                           type="checkbox"
                           id="applyToAllBranches"
@@ -925,10 +1125,10 @@ export const Branches: React.FC = () => {
                         </label>
                       </div>
                     )}
-                    
-                    {/* Çoklu Seçim için Kaydet Butonu */}
-                    {selectedSalesMethods.length > 0 && (
-                      <div className="flex justify-end">
+                  
+                  {/* Çoklu Seçim için Kaydet Butonu */}
+                  {selectedSalesMethods.length > 0 && (
+                    <div className="flex justify-end">
                         <Button
                           onClick={handleAssignSalesMethod}
                           disabled={selectedSalesMethods.length === 0}
@@ -946,7 +1146,6 @@ export const Branches: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* Manager Modal */}
