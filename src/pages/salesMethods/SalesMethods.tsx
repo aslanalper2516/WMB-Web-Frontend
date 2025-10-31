@@ -40,18 +40,20 @@ export const SalesMethods: React.FC = () => {
     queryFn: () => categoryProductApi.getSalesMethods(),
   });
 
-  // Kategorilere göre satış yöntemlerini grupla
+  // Kategorilere göre satış yöntemlerini grupla (pasif kategoriler ve satış yöntemleri de dahil)
   const groupedData = useMemo(() => {
-    if (!categoriesData?.categories || !salesMethodsData?.methods) {
+    if (!categoriesData?.categories) {
       return [];
     }
 
+    // Backend'den gelen satış yöntemleri (aktif ve pasif)
+    const allMethods = salesMethodsData?.methods || [];
+
     return categoriesData.categories
-      .filter(cat => cat.isActive) // Sadece aktif kategoriler
       .map(category => {
-        const methods = salesMethodsData.methods.filter((method: SalesMethod) => {
+        const methods = allMethods.filter((method: SalesMethod) => {
           const categoryId = typeof method.category === 'string' ? method.category : method.category?._id;
-          return categoryId === category._id && method.isActive !== false;
+          return categoryId === category._id;
         });
         
         return {
@@ -59,6 +61,7 @@ export const SalesMethods: React.FC = () => {
           methods,
         };
       })
+      // Tüm kategorileri göster, satış yöntemi olmasa bile (pasif satış yöntemleri de dahil)
       .sort((a, b) => a.category.name.localeCompare(b.category.name)); // Kategoriye göre sırala
   }, [categoriesData, salesMethodsData]);
 
@@ -93,6 +96,14 @@ export const SalesMethods: React.FC = () => {
 
   const deleteMutation = useMutation({
     mutationFn: categoryProductApi.deleteSalesMethod,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
+    },
+  });
+
+  const toggleActiveSalesMethodMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      categoryProductApi.updateSalesMethod(id, { isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-methods'] });
     },
@@ -201,6 +212,13 @@ export const SalesMethods: React.FC = () => {
     });
   };
 
+  const handleToggleActiveSalesMethod = (method: SalesMethod) => {
+    toggleActiveSalesMethodMutation.mutate({
+      id: method._id,
+      isActive: !(method.isActive !== false), // method.isActive undefined ise true kabul et
+    });
+  };
+
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
       const newSet = new Set(prev);
@@ -267,7 +285,7 @@ export const SalesMethods: React.FC = () => {
               <Card key={category._id} className="overflow-hidden">
                 <CardContent className="p-0">
                   {/* Kategori Header */}
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                  <div className={`p-4 border-b border-gray-200 dark:border-gray-600 ${category.isActive ? 'bg-gray-50 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-800 opacity-70'}`}>
                     <div className="flex items-center justify-between">
                       <div 
                         className="flex items-center space-x-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
@@ -278,15 +296,17 @@ export const SalesMethods: React.FC = () => {
                         ) : (
                           <ChevronRight className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                         )}
-                        <Folder className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                        <Folder className={`h-5 w-5 ${category.isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
                         <div>
-                          <h3 className="font-semibold text-gray-900 dark:text-white">{category.name}</h3>
+                          <h3 className={`font-semibold ${category.isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {category.name}
+                          </h3>
                           {category.description && (
                             <p className="text-sm text-gray-500 dark:text-gray-400">{category.description}</p>
                           )}
                         </div>
                         <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
-                          {methods.length} satış yöntemi
+                          {methods.length} satış yöntemi ({methods.filter((m: SalesMethod) => m.isActive !== false).length} aktif)
                         </span>
                         <span
                           className={`px-2 py-1 text-xs rounded-full ${
@@ -354,25 +374,29 @@ export const SalesMethods: React.FC = () => {
                         </div>
                       ) : (
                         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {methods.map((method: SalesMethod) => (
+                          {methods.map((method: SalesMethod) => {
+                            const isMethodActive = method.isActive !== false;
+                            return (
                             <div
                               key={method._id}
-                              className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              className={`p-4 transition-colors ${isMethodActive ? 'hover:bg-gray-50 dark:hover:bg-gray-700' : 'opacity-60 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start space-x-3 flex-1">
-                                  <FileText className="h-5 w-5 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                                  <FileText className={`h-5 w-5 mt-0.5 flex-shrink-0 ${isMethodActive ? 'text-gray-400 dark:text-gray-500' : 'text-gray-300 dark:text-gray-600'}`} />
                                   <div className="flex-1">
                                     <div className="flex items-center space-x-2">
-                                      <h4 className="font-medium text-gray-900 dark:text-white">{method.name}</h4>
+                                      <h4 className={`font-medium ${isMethodActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                                        {method.name}
+                                      </h4>
                                       <span
                                         className={`px-2 py-0.5 text-xs rounded-full ${
-                                          method.isActive !== false
+                                          isMethodActive
                                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                                             : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                                         }`}
                                       >
-                                        {method.isActive !== false ? 'Aktif' : 'Pasif'}
+                                        {isMethodActive ? 'Aktif' : 'Pasif'}
                                       </span>
                                     </div>
                                     {method.description && (
@@ -384,6 +408,15 @@ export const SalesMethods: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-2 ml-4">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleToggleActiveSalesMethod(method)}
+                                    title={method.isActive !== false ? 'Pasif Yap' : 'Aktif Yap'}
+                                    disabled={toggleActiveSalesMethodMutation.isPending}
+                                  >
+                                    {method.isActive !== false ? '❌' : '✅'}
+                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -401,7 +434,8 @@ export const SalesMethods: React.FC = () => {
                                 </div>
                               </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                       )}
                     </div>
@@ -543,9 +577,9 @@ export const SalesMethods: React.FC = () => {
                     required
                   >
                     <option value="">Kategori Seçin</option>
-                    {categoriesData?.categories?.filter(cat => cat.isActive).map((category) => (
+                    {categoriesData?.categories?.map((category) => (
                       <option key={category._id} value={category._id}>
-                        {category.name}
+                        {category.name} {!category.isActive ? '(Pasif)' : ''}
                       </option>
                     ))}
                   </select>
@@ -611,9 +645,9 @@ export const SalesMethods: React.FC = () => {
                     required
                   >
                     <option value="">Kategori Seçin</option>
-                    {categoriesData?.categories?.filter(cat => cat.isActive).map((category) => (
+                    {categoriesData?.categories?.map((category) => (
                       <option key={category._id} value={category._id}>
-                        {category.name}
+                        {category.name} {!category.isActive ? '(Pasif)' : ''}
                       </option>
                     ))}
                   </select>

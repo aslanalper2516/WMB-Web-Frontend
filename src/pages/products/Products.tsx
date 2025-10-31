@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Table } from '../../components/ui/Table';
+import { useToast } from '../../components/ui/Toast';
 import { Plus, Edit, Trash2, DollarSign, AlertTriangle } from 'lucide-react';
 import type { Product, CreateProductRequest, ProductPrice, SalesMethod, CurrencyUnit } from '../../types';
 
@@ -33,6 +34,7 @@ export const Products: React.FC = () => {
   });
 
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const { data: productsData, isLoading } = useQuery({
     queryKey: ['products'],
@@ -64,6 +66,7 @@ export const Products: React.FC = () => {
       categoryProductApi.updateProduct(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      showToast('Ürün başarıyla güncellendi.', 'success');
       setIsEditModalOpen(false);
       setSelectedProduct(null);
       setFormData({ name: '', description: '', defaultSalesMethod: '', company: '' });
@@ -74,6 +77,7 @@ export const Products: React.FC = () => {
     mutationFn: categoryProductApi.deleteProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      showToast('Ürün başarıyla silindi.', 'success');
     },
   });
 
@@ -156,12 +160,12 @@ export const Products: React.FC = () => {
     e.preventDefault();
     
     if (!formData.defaultSalesMethod) {
-      alert('Varsayılan satış yöntemi seçilmelidir!');
+      showToast('Varsayılan satış yöntemi seçilmelidir!', 'warning');
       return;
     }
     
     if (!formData.company) {
-      alert('Şirket seçilmelidir!');
+      showToast('Şirket seçilmelidir!', 'warning');
       return;
     }
     
@@ -180,6 +184,9 @@ export const Products: React.FC = () => {
       
       // Cache'i güncelle
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      // Başarı mesajı göster
+      showToast('Ürün başarıyla oluşturuldu.', 'success');
       
       // Formu temizle ve kapat
       setIsCreateModalOpen(false);
@@ -227,7 +234,7 @@ export const Products: React.FC = () => {
         }
       }
       
-      alert(errorMessage);
+      showToast(errorMessage, 'error');
     }
   };
 
@@ -329,8 +336,13 @@ export const Products: React.FC = () => {
   };
 
   const handleEditPrice = (salesMethodId: string, branchId?: string) => {
+    // Önce önceki state'leri temizle - farklı satış yöntemleri için state'lerin birbirine karışmasını önle
+    handleCancelEdit();
+    
+    // Yeni değerleri set et
+    const targetBranchId = branchId || selectedBranchTab || '';
     setEditingSalesMethodId(salesMethodId);
-    setEditingBranchId(branchId || '');
+    setEditingBranchId(targetBranchId);
     
     // Şube seçimine göre fiyat bul
     const existing = productPrices.find(p => {
@@ -338,9 +350,9 @@ export const Products: React.FC = () => {
       const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
       const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
       
-      if (branchId) {
+      if (targetBranchId) {
         // Şube özel fiyat arıyoruz
-        return priceSalesMethodId === salesMethodId && priceBranchId === branchId;
+        return priceSalesMethodId === salesMethodId && priceBranchId === targetBranchId;
       } else {
         // Genel fiyat arıyoruz (şube yok)
         return priceSalesMethodId === salesMethodId && !priceBranchId;
@@ -357,7 +369,7 @@ export const Products: React.FC = () => {
       setEditingPriceId('');
       setEditingPrice(0);
       setEditingCurrencyUnitId(currencyUnitsData?.units?.[0]?._id || '');
-      setEditingBranchId(branchId || '');
+      setEditingBranchId(targetBranchId);
     }
   };
 
@@ -422,31 +434,90 @@ export const Products: React.FC = () => {
       }) || [];
       
       // Uygulanacak şubeler
+      // Önce editingBranchId kontrolü, yoksa selectedBranchTab kullan
+      const currentBranchId = editingBranchId || selectedBranchTab;
+      
       const branchesToApply = isApplyingToAllBranches 
         ? companyBranches.map(b => b._id)
-        : (editingBranchId ? [editingBranchId] : []);
+        : (currentBranchId ? [currentBranchId] : []);
+      
+      // Şube seçilmediyse hata ver
+      if (branchesToApply.length === 0) {
+        showToast('Lütfen bir şube seçin.', 'warning');
+        // State'leri temizle
+        handleCancelEdit();
+        return;
+      }
       
       // Her şube için fiyat kaydet
-      for (const branchId of branchesToApply) {
-        // Önce mevcut fiyatı kontrol et ve sil
-        const existingPrice = productPrices.find(p => {
-          if (!p.salesMethod) return false; // null salesMethod kontrolü
-          const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
-          const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
-          return priceSalesMethodId === editingSalesMethodId && priceBranchId === branchId;
-        });
-        
-        if (existingPrice) {
-          await categoryProductApi.deleteProductPrice(existingPrice._id);
-      }
-        
-        // Yeni fiyatı ekle
-      await categoryProductApi.createProductPrice(selectedProduct._id, {
-        salesMethod: editingSalesMethodId,
-        price: editingPrice,
-        currencyUnit: editingCurrencyUnitId,
-          branch: branchId,
+      const promises = branchesToApply.map(async (branchId) => {
+        try {
+          // Önce mevcut fiyatı kontrol et ve sil
+          const existingPrice = productPrices.find(p => {
+            if (!p.salesMethod) return false; // null salesMethod kontrolü
+            const priceSalesMethodId = typeof p.salesMethod === 'string' ? p.salesMethod : p.salesMethod._id;
+            const priceBranchId = typeof p.branch === 'string' ? p.branch : p.branch?._id || '';
+            return priceSalesMethodId === editingSalesMethodId && priceBranchId === branchId;
+          });
+          
+          if (existingPrice) {
+            await categoryProductApi.deleteProductPrice(existingPrice._id);
+          }
+          
+          // Yeni fiyatı ekle
+          // Ürünün şirket bilgisini de gönder
+          const priceData: any = {
+            salesMethod: editingSalesMethodId,
+            price: editingPrice,
+            currencyUnit: editingCurrencyUnitId,
+            branch: branchId,
+          };
+          
+          // Company bilgisini ekle (backend muhtemelen bekliyor)
+          if (productCompanyId) {
+            priceData.company = productCompanyId;
+          }
+          
+          await categoryProductApi.createProductPrice(selectedProduct._id, priceData);
+          
+          return { success: true, branchId };
+        } catch (error: any) {
+          console.error(`Şube ${branchId} için fiyat kaydedilemedi:`, error);
+          return { 
+            success: false, 
+            branchId, 
+            error: error?.response?.data || error?.message || 'Bilinmeyen hata'
+          };
+        }
       });
+      
+      // Tüm fiyatları kaydet - başarısız olanları da kontrol et
+      const results = await Promise.allSettled(promises);
+      
+      // Hata kontrolü
+      const errors: Array<{ branchId: string; error: any }> = [];
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          errors.push({ branchId: branchesToApply[index], error: result.reason });
+        } else if (result.value && !result.value.success) {
+          errors.push({ branchId: result.value.branchId, error: result.value.error });
+        }
+      });
+      
+      // Eğer tüm işlemler başarısız olduysa hata fırlat
+      if (errors.length === branchesToApply.length) {
+        throw new Error(`Tüm şubeler için fiyat kaydedilemedi. İlk hata: ${JSON.stringify(errors[0]?.error)}`);
+      }
+      
+      // Bazı şubeler başarısız olduysa uyarı göster
+      if (errors.length > 0) {
+        const branchNames = errors.map(e => {
+          const branch = branchesData?.branches?.find(b => b._id === e.branchId);
+          return branch?.name || e.branchId;
+        }).join(', ');
+        
+        const errorMessage = `${branchesToApply.length - errors.length} şube için fiyat kaydedildi. ${errors.length} şube için hata oluştu: ${branchNames}`;
+        showToast(errorMessage, 'warning');
       }
       
       // Yeniden yükle
@@ -476,10 +547,55 @@ export const Products: React.FC = () => {
         }));
       }
       
-      // Reset
+      // Başarı mesajı göster
+      if (branchesToApply.length === 1) {
+        showToast('Fiyat başarıyla kaydedildi.', 'success');
+      } else {
+        showToast(`${branchesToApply.length} şube için fiyat başarıyla kaydedildi.`, 'success');
+      }
+      
+      // Reset - başarılı kayıttan sonra state'leri temizle
       handleCancelEdit();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Fiyat kaydedilemedi:', e);
+      
+      // Detaylı hata bilgisi
+      let errorMessage = 'Fiyat kaydedilemedi. Lütfen tekrar deneyin.';
+      
+      if (e?.response?.data) {
+        // Backend'den gelen hata mesajı
+        if (e.response.data.message) {
+          errorMessage = e.response.data.message;
+        } else if (e.response.data.error) {
+          errorMessage = e.response.data.error;
+        } else if (typeof e.response.data === 'string') {
+          errorMessage = e.response.data;
+        }
+        
+        // Validation hatalarını da göster
+        if (e.response.data.errors && Array.isArray(e.response.data.errors)) {
+          const validationErrors = e.response.data.errors.map((err: any) => 
+            `${err.field || err.path}: ${err.message || err.msg}`
+          ).join('\n');
+          errorMessage += '\n\nValidasyon Hataları:\n' + validationErrors;
+        }
+      } else if (e?.message) {
+        errorMessage = e.message;
+      }
+      
+      // Sadece gerçek hatalarda console'a yaz (debug için)
+      if (e?.response?.status !== 500 || !errorMessage.includes('Internal Server Error')) {
+        console.error('Hata detayı:', {
+          status: e?.response?.status,
+          statusText: e?.response?.statusText,
+          data: e?.response?.data,
+        });
+      }
+      
+      // Hata durumunda kullanıcıya bilgi ver
+      showToast(errorMessage, 'error');
+      // Hata durumunda da state'leri temizle (eski state'lerin kalmasını önle)
+      handleCancelEdit();
     }
   };
 
@@ -927,7 +1043,14 @@ export const Products: React.FC = () => {
                                               type="checkbox"
                                               id="applyToAllBranches"
                                               checked={isApplyingToAllBranches}
-                                              onChange={(e) => setIsApplyingToAllBranches(e.target.checked)}
+                                              onChange={(e) => {
+                                                const checked = e.target.checked;
+                                                setIsApplyingToAllBranches(checked);
+                                                // Checkbox kaldırıldığında editingBranchId'yi güncelle
+                                                if (!checked && !editingBranchId && selectedBranchTab) {
+                                                  setEditingBranchId(selectedBranchTab);
+                                                }
+                                              }}
                                               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                                             />
                                             <label 
