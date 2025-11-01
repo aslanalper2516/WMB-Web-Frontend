@@ -14,111 +14,6 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Building2, MapPin, CheckSquare, Square } from 'lucide-react';
 import type { User, RegisterRequest, UpdateUserRequest, Company, Branch, Role, UserCompanyBranch } from '../../types';
 
-// Error handling helper function
-const getErrorMessage = (error: any, defaultMessage: string = 'Bir hata oluştu.'): string => {
-  // Network hatası
-  if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-    return 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.';
-  }
-
-  // Timeout hatası
-  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-    return 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
-  }
-
-  // HTTP hata yanıtı var
-  if (error.response) {
-    const status = error.response.status;
-    const errorData = error.response.data;
-
-    // 400 - Bad Request (Validation errors)
-    if (status === 400) {
-      if (typeof errorData === 'string') {
-        return errorData;
-      }
-      if (errorData?.message) {
-        return errorData.message;
-      }
-      if (errorData?.error) {
-        return errorData.error;
-      }
-      if (errorData?.errors && Array.isArray(errorData.errors)) {
-        return `Validasyon hataları: ${errorData.errors.map((e: any) => e.message || e).join(', ')}`;
-      }
-      if (errorData?.errors && typeof errorData.errors === 'object') {
-        const validationErrors = Object.entries(errorData.errors)
-          .map(([key, value]: [string, any]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
-          .join('; ');
-        return `Validasyon hataları: ${validationErrors}`;
-      }
-      return 'Geçersiz istek. Lütfen bilgileri kontrol edin.';
-    }
-
-    // 401 - Unauthorized
-    if (status === 401) {
-      return 'Yetkiniz bulunmuyor. Lütfen giriş yapın.';
-    }
-
-    // 403 - Forbidden
-    if (status === 403) {
-      return 'Bu işlem için yetkiniz bulunmuyor.';
-    }
-
-    // 404 - Not Found
-    if (status === 404) {
-      return 'İstenen kayıt bulunamadı.';
-    }
-
-    // 409 - Conflict (Duplicate entry)
-    if (status === 409) {
-      if (typeof errorData === 'string' && (errorData.includes('zaten') || errorData.includes('atanmış'))) {
-        return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
-      }
-      return errorData?.message || errorData?.error || 'Bu kayıt zaten mevcut.';
-    }
-
-    // 500 - Internal Server Error
-    if (status === 500) {
-      // Backend log'undan bilinen hatalar için özel mesajlar
-      const errorText = typeof errorData === 'string' ? errorData : (errorData?.message || errorData?.error || '');
-      if (errorText.includes('zaten') || errorText.includes('atanmış') || errorText === 'Internal Server Error') {
-        return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
-      }
-      return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
-    }
-
-    // Diğer 5xx hatalar
-    if (status >= 500) {
-      return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
-    }
-
-    // 4xx hatalar (diğer)
-    if (status >= 400 && status < 500) {
-      if (typeof errorData === 'string') {
-        return errorData;
-      }
-      return errorData?.message || errorData?.error || 'İstek hatası. Lütfen bilgileri kontrol edin.';
-    }
-
-    // Response data parse et
-    if (typeof errorData === 'string') {
-      return errorData;
-    }
-    if (errorData?.message) {
-      return errorData.message;
-    }
-    if (errorData?.error) {
-      return errorData.error;
-    }
-  }
-
-  // Error message var mı kontrol et
-  if (error.message) {
-    return error.message;
-  }
-
-  return defaultMessage;
-};
 
 // Detaylı error logging (development için)
 const logError = (error: any, context: string) => {
@@ -129,12 +24,42 @@ const logError = (error: any, context: string) => {
       status: error.response?.status,
       statusText: error.response?.statusText,
       data: error.response?.data,
+      dataType: typeof error.response?.data,
+      dataStringified: typeof error.response?.data === 'object' ? JSON.stringify(error.response?.data, null, 2) : error.response?.data,
       request: {
         url: error.config?.url,
         method: error.config?.method,
         data: error.config?.data
+      },
+      // Backend service dosyalarından bilinen hata mesajları için referans
+      knownBackendErrors: {
+        superAdmin: 'Super-admin rolüne sahip kullanıcılar şirket veya şubeye atanamaz.',
+        duplicate: 'Bu kullanıcı zaten bu şirket/şubeye atanmış',
+        multipleCompanies: 'Bu kullanıcı zaten başka bir şirkete atanmış. Bir kullanıcı sadece bir şirkete ait olabilir.',
+        companyManagerBranch: 'Şirket yöneticisi rolüne sahip kullanıcılar şubeye atanamaz. Sadece şirket seviyesinde atanabilirler.'
       }
     });
+    
+    // Özel olarak response body'yi de göster
+    if (error.response?.data) {
+      console.error(`[${context}] Response Body:`, error.response.data);
+      if (typeof error.response.data === 'string') {
+        console.error(`[${context}] Response Body (String):`, error.response.data);
+      }
+    }
+    
+    // Request data'dan kullanıcı ve rol bilgisini çıkar (super-admin kontrolü için)
+    if (error.config?.data) {
+      try {
+        const requestData = typeof error.config.data === 'string' ? JSON.parse(error.config.data) : error.config.data;
+        if (requestData.user) {
+          console.warn(`[${context}] Request User ID:`, requestData.user);
+          console.warn(`[${context}] Note: Backend'de bu kullanıcının rolü kontrol ediliyor. Super-admin kontrolü backend'de yapılıyor.`);
+        }
+      } catch (e) {
+        // JSON parse hatası, önemli değil
+      }
+    }
   }
 };
 
@@ -192,6 +117,253 @@ export const Users: React.FC = () => {
     queryFn: () => rolePermissionApi.getRoles(),
   });
 
+  // Error handling helper function with access to usersData and rolesData
+  const getErrorMessage = useMemo(() => {
+    return (error: any, defaultMessage: string = 'Bir hata oluştu.', context?: string): string => {
+      // Network hatası
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        return 'Backend sunucusuna bağlanılamıyor. Lütfen backend\'in çalıştığından emin olun.';
+      }
+
+      // Timeout hatası
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        return 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
+      }
+
+      // HTTP hata yanıtı var
+      if (error.response) {
+        const status = error.response.status;
+        const errorData = error.response.data;
+        const requestUrl = error.config?.url || '';
+        const requestMethod = error.config?.method || '';
+
+        // 400 - Bad Request (Validation errors)
+        if (status === 400) {
+          if (typeof errorData === 'string') {
+            return errorData;
+          }
+          if (errorData?.message) {
+            return errorData.message;
+          }
+          if (errorData?.error) {
+            return errorData.error;
+          }
+          if (errorData?.errors && Array.isArray(errorData.errors)) {
+            return `Validasyon hataları: ${errorData.errors.map((e: any) => e.message || e).join(', ')}`;
+          }
+          if (errorData?.errors && typeof errorData.errors === 'object') {
+            const validationErrors = Object.entries(errorData.errors)
+              .map(([key, value]: [string, any]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+              .join('; ');
+            return `Validasyon hataları: ${validationErrors}`;
+          }
+          return 'Geçersiz istek. Lütfen bilgileri kontrol edin.';
+        }
+
+        // 401 - Unauthorized
+        if (status === 401) {
+          return 'Yetkiniz bulunmuyor. Lütfen giriş yapın.';
+        }
+
+        // 403 - Forbidden
+        if (status === 403) {
+          return 'Bu işlem için yetkiniz bulunmuyor.';
+        }
+
+        // 404 - Not Found
+        if (status === 404) {
+          return 'İstenen kayıt bulunamadı.';
+        }
+
+        // 409 - Conflict (Duplicate entry)
+        if (status === 409) {
+          if (typeof errorData === 'string' && (errorData.includes('zaten') || errorData.includes('atanmış'))) {
+            return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+          }
+          return errorData?.message || errorData?.error || 'Bu kayıt zaten mevcut.';
+        }
+
+        // 500 - Internal Server Error
+        if (status === 500) {
+          // Backend'den gelen tüm olası mesaj kaynaklarını kontrol et
+          let errorText = '';
+          
+          // Önce errorData'yı kontrol et (string, object, vs.)
+          if (typeof errorData === 'string') {
+            errorText = errorData;
+          } else if (errorData) {
+            // Object ise message, error, veya diğer alanları kontrol et
+            errorText = errorData.message || 
+                       errorData.error || 
+                       errorData.details ||
+                       errorData.msg ||
+                       (Array.isArray(errorData.errors) ? errorData.errors.map((e: any) => e.message || e).join(', ') : '') ||
+                       '';
+          }
+          
+          // Request context'e göre bilinen hata senaryolarını kontrol et
+          // User-company-branch assignment endpoint'leri için özel kontroller
+          if (requestUrl.includes('user-company-branches') && requestMethod === 'post') {
+            // Bu endpoint'te backend'den bilinen hata mesajları:
+            // 1. "Super-admin rolüne sahip kullanıcılar şirket veya şubeye atanamaz."
+            // 2. "Bu kullanıcı zaten bu şirket/şubeye atanmış"
+            // 3. "Bu kullanıcı zaten başka bir şirkete atanmış. Bir kullanıcı sadece bir şirkete ait olabilir."
+            // 4. "Şirket yöneticisi rolüne sahip kullanıcılar şubeye atanamaz. Sadece şirket seviyesinde atanabilirler."
+            
+            // Eğer generic "Internal Server Error" geldiyse, request data'dan kullanıcı bilgisini çıkar ve kontrol et
+            if (errorText === 'Internal Server Error' || !errorText) {
+              // Request data'dan kullanıcı ID'sini çıkar
+              let requestUserId = '';
+              try {
+                const requestData = typeof error.config?.data === 'string' 
+                  ? JSON.parse(error.config.data) 
+                  : (error.config?.data || {});
+                requestUserId = requestData.user || '';
+              } catch (e) {
+                // JSON parse hatası, önemli değil
+              }
+              
+              // Eğer user ID varsa, kullanıcının rolünü kontrol et
+              if (requestUserId) {
+                // Kullanıcı bilgisini usersData'dan bul
+                const user = usersData?.users?.find((u: User) => 
+                  (u._id === requestUserId) || (u.id === requestUserId)
+                );
+                
+                if (user) {
+                  // Kullanıcının rolünü kontrol et
+                  const userRole = typeof user.role === 'string' 
+                    ? rolesData?.roles?.find((r: Role) => r._id === user.role) 
+                    : user.role;
+                  
+                  if (userRole) {
+                    const roleName = (typeof userRole === 'object' ? userRole.name : userRole).toLowerCase().trim();
+                    
+                    // Super-admin kontrolü
+                    if (roleName === 'super-admin' || roleName === 'super admin') {
+                      return 'Super-admin rolüne sahip kullanıcılar şirket veya şubeye atanamaz.';
+                    }
+                    
+                    // Şirket yöneticisi kontrolü (şube seçilmişse)
+                    if ((roleName === 'şirket-yöneticisi' || roleName === 'şirket yöneticisi' || 
+                         roleName === 'sirket-yoneticisi' || roleName === 'sirket yoneticisi')) {
+                      const requestData = typeof error.config?.data === 'string' 
+                        ? JSON.parse(error.config.data) 
+                        : (error.config?.data || {});
+                      
+                      if (requestData.branch) {
+                        return 'Şirket yöneticisi rolüne sahip kullanıcılar şubeye atanamaz. Sadece şirket seviyesinde atanabilirler.';
+                      }
+                    }
+                  }
+                }
+              }
+              
+              // Eğer hala mesaj bulamadıysak, genel mesaj göster
+              return 'Kullanıcı atanırken bir hata oluştu. Lütfen kullanıcının rolünü ve mevcut atamalarını kontrol edin.';
+            }
+            
+            // Super-admin kontrolü (mesaj içinde geçiyorsa)
+            if (errorText.toLowerCase().includes('super-admin') || 
+                errorText.toLowerCase().includes('super admin')) {
+              return 'Super-admin rolüne sahip kullanıcılar şirket veya şubeye atanamaz.';
+            }
+            
+            // Duplicate assignment kontrolü
+            if (errorText.includes('zaten') || errorText.includes('atanmış')) {
+              return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+            }
+            
+            // Başka şirkete atanmış kontrolü
+            if (errorText.includes('başka bir şirkete') || errorText.includes('sadece bir şirkete')) {
+              return 'Bu kullanıcı zaten başka bir şirkete atanmış. Bir kullanıcı sadece bir şirkete ait olabilir.';
+            }
+            
+            // Şirket yöneticisi şubeye atanamaz kontrolü
+            if (errorText.includes('şirket yöneticisi') && errorText.includes('şubeye atanamaz')) {
+              return 'Şirket yöneticisi rolüne sahip kullanıcılar şubeye atanamaz. Sadece şirket seviyesinde atanabilirler.';
+            }
+            
+            // Generic mesaj varsa göster
+            if (errorText && errorText !== 'Internal Server Error') {
+              return errorText;
+            }
+          }
+          
+          // Diğer endpoint'ler için genel kontrol
+          // Super-admin kontrolü
+          if (errorText.toLowerCase().includes('super-admin') || 
+              errorText.toLowerCase().includes('super admin')) {
+            return 'Super-admin rolüne sahip kullanıcılar şirket veya şubeye atanamaz.';
+          }
+          
+          // Duplicate assignment kontrolü
+          if (errorText.includes('zaten') || errorText.includes('atanmış')) {
+            return 'Bu kullanıcı zaten bu şirket/şubeye atanmış. Mevcut atamayı güncellemek için önce mevcut atamayı kaldırın.';
+          }
+          
+          // Generic "Internal Server Error" string'i geldiyse
+          if (errorText && errorText !== 'Internal Server Error') {
+            return errorText;
+          }
+          
+          return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+        }
+
+        // Diğer 5xx hatalar
+        if (status >= 500) {
+          // Diğer 5xx hatalar için de aynı parse mantığını uygula
+          let errorText = '';
+          if (typeof errorData === 'string') {
+            errorText = errorData;
+          } else if (errorData) {
+            errorText = errorData.message || errorData.error || errorData.details || '';
+          }
+          
+          if (errorText && errorText !== 'Internal Server Error') {
+            return errorText;
+          }
+          
+          return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+        }
+
+        // 4xx hatalar (diğer)
+        if (status >= 400 && status < 500) {
+          if (typeof errorData === 'string') {
+            return errorData;
+          }
+          return errorData?.message || errorData?.error || 'İstek hatası. Lütfen bilgileri kontrol edin.';
+        }
+
+        // Response data parse et
+        if (typeof errorData === 'string') {
+          return errorData;
+        }
+        if (errorData?.message) {
+          return errorData.message;
+        }
+        if (errorData?.error) {
+          return errorData.error;
+        }
+        if (errorData?.details) {
+          return errorData.details;
+        }
+      }
+
+      // Error message var mı kontrol et (Axios error mesajı)
+      if (error.message) {
+        // Eğer error.message içinde bilinen hata mesajları varsa onları kontrol et
+        const messageLower = error.message.toLowerCase();
+        if (messageLower.includes('super-admin') || messageLower.includes('super admin')) {
+          return 'Super-admin rolüne sahip kullanıcılar şirket veya şubeye atanamaz.';
+        }
+        return error.message;
+      }
+
+      return defaultMessage;
+    };
+  }, [usersData, rolesData]);
+
   // Load user company branches for all users
   useEffect(() => {
     if (usersData?.users) {
@@ -248,11 +420,12 @@ export const Users: React.FC = () => {
               )
             );
           }
-        } catch (error) {
-          // Atama hatası olsa bile kullanıcı oluşturuldu, sadece atama yapılamadı
-          logError(error, 'Assign User to Company/Branch after create');
-          showToast('Kullanıcı oluşturuldu ancak şirket/şubeye atama yapılamadı.', 'warning');
-        }
+         } catch (error: any) {
+           // Atama hatası olsa bile kullanıcı oluşturuldu, sadece atama yapılamadı
+           logError(error, 'Assign User to Company/Branch after create');
+           const assignErrorMessage = getErrorMessage(error, 'Kullanıcı atanırken bir hata oluştu.', 'Assign User to Company/Branch');
+           showToast(`Kullanıcı oluşturuldu ancak şirket/şubeye atama yapılamadı: ${assignErrorMessage}`, 'warning');
+         }
       }
       
       // State'leri temizle
@@ -267,7 +440,7 @@ export const Users: React.FC = () => {
     },
     onError: (error: any) => {
       logError(error, 'Create User');
-      const errorMessage = getErrorMessage(error, 'Kullanıcı oluşturulurken bir hata oluştu.');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı oluşturulurken bir hata oluştu.', 'Create User');
       showToast(errorMessage, 'error');
     },
   });
@@ -284,7 +457,7 @@ export const Users: React.FC = () => {
     },
     onError: (error: any) => {
       logError(error, 'Delete User');
-      const errorMessage = getErrorMessage(error, 'Kullanıcı silinirken bir hata oluştu.');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı silinirken bir hata oluştu.', 'Delete User');
       showToast(errorMessage, 'error');
     },
   });
@@ -417,35 +590,48 @@ export const Users: React.FC = () => {
     try {
       await authApi.updateUser(selectedUser.id, finalUpdateData);
       
-      // Şirket/şube ataması durumunu yönet
-      const currentRes = await userCompanyBranchApi.getUserCompanies(userId);
-      const existingActives = currentRes?.assignments?.filter((ucb: UserCompanyBranch) => ucb.isActive) || [];
-      
-      // Mevcut tüm aktif atamaları sil
-      await Promise.all(
-        existingActives.map(ucb => userCompanyBranchApi.deleteUserCompanyBranch(ucb._id))
-      );
-      
-      // Yeni atamaları yap (eğer şirket seçildiyse)
+      // Şirket/şube ataması durumunu yönet (sadece şirket seçildiyse)
       if (assignFormData.company) {
-        // Eğer hiç şube seçilmemişse sadece şirket ata
-        if (selectedBranches.length === 0) {
-          await userCompanyBranchApi.assignUserToCompanyBranch({
-            user: userId,
-            company: assignFormData.company,
-            branch: null
-          });
-        } else {
-          // Her seçili şube için ayrı atama yap
+        try {
+          const currentRes = await userCompanyBranchApi.getUserCompanies(userId);
+          const existingActives = currentRes?.assignments?.filter((ucb: UserCompanyBranch) => ucb.isActive) || [];
+          
+          // Mevcut tüm aktif atamaları sil
           await Promise.all(
-            selectedBranches.map(branchId =>
-              userCompanyBranchApi.assignUserToCompanyBranch({
-                user: userId,
-                company: assignFormData.company,
-                branch: branchId
-              })
-            )
+            existingActives.map(ucb => userCompanyBranchApi.deleteUserCompanyBranch(ucb._id))
           );
+          
+          // Yeni atamaları yap
+          // Eğer hiç şube seçilmemişse sadece şirket ata
+          if (selectedBranches.length === 0) {
+            await userCompanyBranchApi.assignUserToCompanyBranch({
+              user: userId,
+              company: assignFormData.company,
+              branch: null
+            });
+          } else {
+            // Her seçili şube için ayrı atama yap
+            await Promise.all(
+              selectedBranches.map(branchId =>
+                userCompanyBranchApi.assignUserToCompanyBranch({
+                  user: userId,
+                  company: assignFormData.company,
+                  branch: branchId
+                })
+              )
+            );
+          }
+        } catch (assignError: any) {
+          // Atama hatası ayrı handle edilsin
+          logError(assignError, 'Assign User to Company/Branch in Update');
+          const assignErrorMessage = getErrorMessage(assignError, 'Kullanıcı atanırken bir hata oluştu.', 'Assign User to Company/Branch');
+          showToast(assignErrorMessage, 'error');
+          // Kullanıcı bilgileri güncellendi ama atama başarısız oldu
+          queryClient.invalidateQueries({ queryKey: ['users'] });
+          queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
+          setShowEditModal(false);
+          setSelectedUser(null);
+          return; // Fonksiyondan çık
         }
       }
       
@@ -458,11 +644,11 @@ export const Users: React.FC = () => {
       setShowEditModal(false);
       setSelectedUser(null);
       showToast('Kullanıcı başarıyla güncellendi.', 'success');
-    } catch (error: any) {
-      logError(error, 'Update User');
-      const errorMessage = getErrorMessage(error, 'Kullanıcı güncellenirken bir hata oluştu.');
-      showToast(errorMessage, 'error');
-    }
+     } catch (error: any) {
+       logError(error, 'Update User');
+       const errorMessage = getErrorMessage(error, 'Kullanıcı güncellenirken bir hata oluştu.', 'Update User');
+       showToast(errorMessage, 'error');
+     }
   };
 
 
@@ -839,10 +1025,10 @@ export const Users: React.FC = () => {
               
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Şirket/Şube Ataması
+                  Şirket/Şube Ataması (Opsiyonel)
                 </h3>
               <Select
-                label="Şirket *"
+                label="Şirket (Opsiyonel)"
                 value={assignFormData.company}
                 onChange={(e) => {
                   setAssignFormData({ ...assignFormData, company: e.target.value, branch: '' });
@@ -852,8 +1038,7 @@ export const Users: React.FC = () => {
                   value: company._id,
                   label: company.name
                 })) || []}
-                placeholder="Şirket seçiniz..."
-                required
+                placeholder="Şirket seçiniz (opsiyonel)..."
               />
               <div className="space-y-1">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
