@@ -13,7 +13,7 @@ import { Table } from '../../components/ui/Table';
 import { useToast } from '../../components/ui/Toast';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Plus, Edit, Trash2, ShoppingCart, UserCog, ChevronDown, ChevronRight, Folder, FileText } from 'lucide-react';
-import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod, SalesMethodCategory, UserCompanyBranch } from '../../types';
+import type { Branch, CreateBranchRequest, SalesMethod, BranchSalesMethod, SalesMethodCategory, UserCompanyBranch, Company } from '../../types';
 
 export const Branches: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -22,7 +22,8 @@ export const Branches: React.FC = () => {
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [selectedManager, setSelectedManager] = useState<string>('');
-  const [branchManager, setBranchManager] = useState<UserCompanyBranch | null>(null);
+  const [branchManagers, setBranchManagers] = useState<any[]>([]);
+  const [availableManagers, setAvailableManagers] = useState<any[]>([]);
   const [formData, setFormData] = useState<CreateBranchRequest>({
     name: '',
     phone: '',
@@ -162,20 +163,65 @@ export const Branches: React.FC = () => {
       const requestData = {
         user: userId,
         company: companyId,
-        branch: branchId,
-        isManager: true,
-        managerType: 'branch' as 'branch'
+        branch: branchId
       };
       return userCompanyBranchApi.assignUserToCompanyBranch(requestData);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['branches'] });
       queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
-      setIsManagerModalOpen(false);
       setSelectedManager('');
-      setSelectedBranch(null);
-      setBranchManager(null);
       showToast('Yönetici başarıyla atandı.', 'success');
+      
+      // Yöneticiler listesini yenile
+      if (selectedBranch) {
+        try {
+          const managersRes = await companyBranchApi.getBranchManagers(selectedBranch._id);
+          if (managersRes?.managers) {
+            setBranchManagers(managersRes.managers);
+          }
+          
+          // Available managers listesini de güncelle
+          const companyId = typeof selectedBranch.company === 'string' 
+            ? selectedBranch.company 
+            : selectedBranch.company._id;
+          
+          const [allUsersRes, companyUsersRes] = await Promise.all([
+            authApi.getUsers(),
+            userCompanyBranchApi.getCompanyUsers(companyId)
+          ]);
+          
+          if (allUsersRes?.users) {
+            const branchManagerRoleUsers = allUsersRes.users.filter((user: any) => {
+              const role = typeof user.role === 'string' ? null : user.role;
+              const roleName = role?.name?.toLowerCase() || '';
+              return roleName === 'şube yöneticisi' || roleName === 'şube-yöneticisi' || 
+                     roleName === 'sube yoneticisi' || roleName === 'sube-yoneticisi';
+            });
+            
+            const companyUserIds = companyUsersRes?.assignments
+              ?.filter((ucb: UserCompanyBranch) => ucb.isActive)
+              ?.map((ucb: UserCompanyBranch) => {
+                const user = typeof ucb.user === 'string' ? null : ucb.user;
+                return typeof user === 'string' ? user : user?._id || user?.id;
+              }) || [];
+            
+            const currentManagerIds = managersRes?.managers?.map((m: any) => {
+              const user = typeof m.user === 'string' ? null : m.user;
+              return typeof user === 'string' ? user : user?._id || user?.id;
+            }) || [];
+            
+            const available = branchManagerRoleUsers.filter((user: any) => {
+              const userId = user._id || user.id;
+              return companyUserIds.includes(userId) && !currentManagerIds.includes(userId);
+            });
+            
+            setAvailableManagers(available);
+          }
+        } catch (error) {
+          console.error('Yöneticiler yenilenemedi:', error);
+        }
+      }
     },
     onError: (error: any) => {
       console.error('Yönetici atama hatası:', error);
@@ -282,25 +328,57 @@ export const Branches: React.FC = () => {
     setSelectedManager('');
     setIsManagerModalOpen(true);
     
-    // Mevcut yöneticiyi yükle
+    // Mevcut yöneticileri ve yönetici adaylarını yükle
     try {
       const companyId = typeof branch.company === 'string' ? branch.company : branch.company._id;
-      const res = await userCompanyBranchApi.getCompanyUsers(companyId, branch._id);
-      if (res && res.userCompanyBranches && Array.isArray(res.userCompanyBranches)) {
-        const manager = res.userCompanyBranches.find(
-          (ucb: UserCompanyBranch) => 
-            ucb.isManager && 
-            ucb.managerType === 'branch' && 
-            ucb.branch && 
-            (typeof ucb.branch === 'string' ? ucb.branch === branch._id : ucb.branch._id === branch._id)
-        );
-        setBranchManager(manager || null);
+      const managersRes = await companyBranchApi.getBranchManagers(branch._id);
+      
+      // Mevcut yöneticileri ayarla (bu şubeye atanmış ve rolü "şube yöneticisi" olanlar)
+      if (managersRes?.managers) {
+        setBranchManagers(managersRes.managers);
       } else {
-        setBranchManager(null);
+        setBranchManagers([]);
+      }
+      
+      // Tüm kullanıcıları getir ve rolü "şube yöneticisi" olanları filtrele
+      const allUsersRes = await authApi.getUsers();
+      if (allUsersRes?.users) {
+        const branchManagerRoleUsers = allUsersRes.users.filter((user: any) => {
+          const role = typeof user.role === 'string' ? null : user.role;
+          const roleName = role?.name?.toLowerCase() || '';
+          return roleName === 'şube yöneticisi' || roleName === 'şube-yöneticisi' || 
+                 roleName === 'sube yoneticisi' || roleName === 'sube-yoneticisi';
+        });
+        
+        // Bu şirkete atanmış olanları kontrol et
+        const companyUsersRes = await userCompanyBranchApi.getCompanyUsers(companyId);
+        const companyUserIds = companyUsersRes?.assignments
+          ?.filter((ucb: UserCompanyBranch) => ucb.isActive)
+          ?.map((ucb: UserCompanyBranch) => {
+            const user = typeof ucb.user === 'string' ? null : ucb.user;
+            return typeof user === 'string' ? user : user?._id || user?.id;
+          }) || [];
+        
+        // Mevcut yöneticilerin ID'lerini al
+        const currentManagerIds = managersRes?.managers?.map((m: any) => {
+          const user = typeof m.user === 'string' ? null : m.user;
+          return typeof user === 'string' ? user : user?._id || user?.id;
+        }) || [];
+        
+        // Bu şirkete atanmış VE henüz bu şubeye atanmamış olan yönetici adaylarını göster
+        const available = branchManagerRoleUsers.filter((user: any) => {
+          const userId = user._id || user.id;
+          return companyUserIds.includes(userId) && !currentManagerIds.includes(userId);
+        });
+        
+        setAvailableManagers(available);
+      } else {
+        setAvailableManagers([]);
       }
     } catch (error) {
-      console.error('Yönetici yüklenemedi:', error);
-      setBranchManager(null);
+      console.error('Kullanıcılar yüklenemedi:', error);
+      setBranchManagers([]);
+      setAvailableManagers([]);
     }
   };
 
@@ -566,6 +644,15 @@ export const Branches: React.FC = () => {
 
   const columns = [
     { key: 'name' as keyof Branch, title: 'Ad' },
+    { 
+      key: 'company' as keyof Branch, 
+      title: 'Şirket',
+      render: (value: string | Company | undefined) => {
+        if (!value) return '-';
+        if (typeof value === 'string') return value;
+        return value.name;
+      }
+    },
     { key: 'email' as keyof Branch, title: 'E-posta' },
     { key: 'phone' as keyof Branch, title: 'Telefon' },
     { key: 'tables' as keyof Branch, title: 'Masa Sayısı' },
@@ -1261,36 +1348,41 @@ export const Branches: React.FC = () => {
                 Yönetici Ata: {selectedBranch?.name}
               </h3>
               <div className="space-y-4">
-                {branchManager && (() => {
-                  const managerUser = typeof branchManager.user === 'string' 
-                    ? usersData?.users.find(u => (u._id || u.id) === branchManager.user)
-                    : branchManager.user;
-                  
-                  return (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-4">
-                      <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-2">
-                        Mevcut Yönetici
-                      </p>
-                      <div className="flex items-start space-x-2">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                            <span className="text-white text-sm font-medium">
-                              {managerUser?.name?.charAt(0).toUpperCase() || '?'}
-                            </span>
+                {branchManagers.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-2">
+                      Mevcut Yöneticiler ({branchManagers.length})
+                    </p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {branchManagers.map((manager, index) => {
+                        const user = typeof manager.user === 'string' ? null : manager.user;
+                        if (!user) return null;
+                        
+                        return (
+                          <div key={index} className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border border-green-200 dark:border-green-700 rounded-lg p-3">
+                            <div className="flex items-start space-x-2">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-sm font-medium">
+                                    {user?.name?.charAt(0).toUpperCase() || '?'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {user?.name || 'Bilinmiyor'}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  ✉️ {user?.email || 'Email bulunamadı'}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {managerUser?.name || 'Bilinmiyor'}
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                            ✉️ {managerUser?.email || 'Email bulunamadı'}
-                          </p>
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1302,8 +1394,10 @@ export const Branches: React.FC = () => {
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
                     <option value="">Yönetici Seçin</option>
-                    {usersData?.users.map((user) => {
+                    {availableManagers.map((user) => {
                       const userId = user._id || user.id;
+                      if (!userId) return null;
+                      
                       return (
                         <option key={userId} value={userId}>
                           {user.name} ({user.email})
@@ -1321,7 +1415,8 @@ export const Branches: React.FC = () => {
                       setIsManagerModalOpen(false);
                       setSelectedManager('');
                       setSelectedBranch(null);
-                      setBranchManager(null);
+                      setBranchManagers([]);
+                      setAvailableManagers([]);
                     }}
                   >
                     İptal

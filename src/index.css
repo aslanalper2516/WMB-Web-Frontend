@@ -33,4 +33,23 @@
   .animate-shake {
     animation: shake 0.5s ease-in-out;
   }
+
+  /* Input autofill stilleri - dark mode için tutarlılık sağlar */
+  .input-field:-webkit-autofill,
+  .input-field:-webkit-autofill:hover,
+  .input-field:-webkit-autofill:focus,
+  .input-field:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: rgb(17, 24, 39) !important;
+    box-shadow: 0 0 0 30px white inset !important;
+  }
+
+  .dark .input-field:-webkit-autofill,
+  .dark .input-field:-webkit-autofill:hover,
+  .dark .input-field:-webkit-autofill:focus,
+  .dark .input-field:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgb(55, 65, 81) inset !important;
+    -webkit-text-fill-color: white !important;
+    box-shadow: 0 0 0 30px rgb(55, 65, 81) inset !important;
+  }
 }

@@ -395,8 +395,6 @@ export interface UserCompanyBranch {
   user: string | User;
   company: string | Company;
   branch?: string | Branch | null;
-  isManager: boolean;
-  managerType?: 'company' | 'branch' | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -406,13 +404,9 @@ export interface CreateUserCompanyBranchRequest {
   user: string;
   company: string;
   branch?: string | null;
-  isManager?: boolean;
-  managerType?: 'company' | 'branch';
 }
 
 export interface UpdateUserCompanyBranchRequest {
   branch?: string | null;
-  isManager?: boolean;
-  managerType?: 'company' | 'branch';
   isActive?: boolean;
 }

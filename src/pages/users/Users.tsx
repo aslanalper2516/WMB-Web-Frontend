@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { useToast } from '../../components/ui/Toast';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { UserPlus, Building2, MapPin } from 'lucide-react';
+import { Building2, MapPin, CheckSquare, Square } from 'lucide-react';
 import type { User, RegisterRequest, UpdateUserRequest, Company, Branch, Role, UserCompanyBranch } from '../../types';
 
 // Error handling helper function
@@ -144,8 +144,9 @@ export const Users: React.FC = () => {
   const { confirm } = useConfirm();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showBranchesModal, setShowBranchesModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [createFormKey, setCreateFormKey] = useState(0);
   const [userCompanyBranches, setUserCompanyBranches] = useState<Record<string, UserCompanyBranch[]>>({});
   const [formData, setFormData] = useState<RegisterRequest>({
     name: '',
@@ -155,10 +156,20 @@ export const Users: React.FC = () => {
   });
   const [assignFormData, setAssignFormData] = useState({
     company: '',
-    branch: '',
-    isManager: false,
-    managerType: '' as 'company' | 'branch' | ''
+    branch: '' as string | string[]
   });
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+
+  // Modal açıldığında formu tamamen temizle
+  useEffect(() => {
+    if (showCreateModal) {
+      setFormData({ name: '', email: '', password: '', role: '' });
+      setAssignFormData({ company: '', branch: '' });
+      setSelectedBranches([]);
+      setSelectedUser(null);
+      setCreateFormKey(prev => prev + 1); // Form'u yeniden render etmek için key'i değiştir
+    }
+  }, [showCreateModal]);
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ['users'],
@@ -194,7 +205,7 @@ export const Users: React.FC = () => {
             }
             try {
               const res = await userCompanyBranchApi.getUserCompanies(userId);
-              branchesMap[userId] = res?.userCompanyBranches?.filter(ucb => ucb.isActive) || [];
+              branchesMap[userId] = res?.assignments?.filter(ucb => ucb.isActive) || [];
             } catch (error) {
               // Hata durumunda sessizce boş array set et
               logError(error, `Load User Company Branches for User ${userId}`);
@@ -211,10 +222,47 @@ export const Users: React.FC = () => {
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: (userData: RegisterRequest) => authApi.register(userData),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      const newUser = response.user;
+      const userId = newUser._id || newUser.id;
+      
+      // Eğer şirket seçildiyse, kullanıcıyı şirket/şubeye ata
+      if (userId && assignFormData.company) {
+        try {
+          // Eğer hiç şube seçilmemişse sadece şirket ata
+          if (selectedBranches.length === 0) {
+            await userCompanyBranchApi.assignUserToCompanyBranch({
+              user: userId,
+              company: assignFormData.company,
+              branch: null
+            });
+          } else {
+            // Her seçili şube için ayrı atama yap
+            await Promise.all(
+              selectedBranches.map(branchId =>
+                userCompanyBranchApi.assignUserToCompanyBranch({
+                  user: userId,
+                  company: assignFormData.company,
+                  branch: branchId
+                })
+              )
+            );
+          }
+        } catch (error) {
+          // Atama hatası olsa bile kullanıcı oluşturuldu, sadece atama yapılamadı
+          logError(error, 'Assign User to Company/Branch after create');
+          showToast('Kullanıcı oluşturuldu ancak şirket/şubeye atama yapılamadı.', 'warning');
+        }
+      }
+      
+      // State'leri temizle
+      setSelectedBranches([]);
+      
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
       setShowCreateModal(false);
       setFormData({ name: '', email: '', password: '', role: '' });
+      setAssignFormData({ company: '', branch: '' });
       showToast('Kullanıcı başarıyla oluşturuldu.', 'success');
     },
     onError: (error: any) => {
@@ -224,23 +272,6 @@ export const Users: React.FC = () => {
     },
   });
 
-  // Update user mutation
-  const updateUserMutation = useMutation({
-    mutationFn: ({ userId, userData }: { userId: string; userData: UpdateUserRequest }) => 
-      authApi.updateUser(userId, userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
-      setShowEditModal(false);
-      setSelectedUser(null);
-      showToast('Kullanıcı başarıyla güncellendi.', 'success');
-    },
-    onError: (error: any) => {
-      logError(error, 'Update User');
-      const errorMessage = getErrorMessage(error, 'Kullanıcı güncellenirken bir hata oluştu.');
-      showToast(errorMessage, 'error');
-    },
-  });
 
   // Delete user mutation
   const deleteUserMutation = useMutation({
@@ -258,40 +289,6 @@ export const Users: React.FC = () => {
     },
   });
 
-  // Assign user to company/branch mutation
-  const assignUserMutation = useMutation({
-    mutationFn: (data: { user: string; company: string; branch?: string | null; isManager?: boolean; managerType?: 'company' | 'branch' }) =>
-      userCompanyBranchApi.assignUserToCompanyBranch(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
-      setShowAssignModal(false);
-      setAssignFormData({ company: '', branch: '', isManager: false, managerType: '' });
-      if (selectedUser) {
-        // Refresh user's company branches
-        const userId = selectedUser._id || selectedUser.id;
-        if (userId) {
-          userCompanyBranchApi.getUserCompanies(userId)
-            .then(res => {
-              setUserCompanyBranches(prev => ({
-                ...prev,
-                [userId]: res?.userCompanyBranches?.filter(ucb => ucb.isActive) || []
-              }));
-            })
-            .catch((error) => {
-              // Hata durumunda sessizce atla (zaten toast gösterildi)
-              logError(error, `Refresh User Company Branches for User ${userId}`);
-            });
-        }
-      }
-      showToast('Kullanıcı başarıyla atandı.', 'success');
-    },
-    onError: (error: any) => {
-      logError(error, 'Assign User to Company/Branch');
-      const errorMessage = getErrorMessage(error, 'Kullanıcı atanırken bir hata oluştu.');
-      showToast(errorMessage, 'error');
-    },
-  });
 
   // Get primary company and branch for display
   const getPrimaryCompanyBranch = useMemo(() => {
@@ -300,20 +297,7 @@ export const Users: React.FC = () => {
       const branches = userCompanyBranches[userId] || [];
       if (branches.length === 0) return { company: null, branch: null };
       
-      // Priority: manager company > manager branch > first active
-      const managerCompany = branches.find(ucb => ucb.isManager && ucb.managerType === 'company' && !ucb.branch);
-      if (managerCompany) {
-        const company = typeof managerCompany.company === 'string' ? null : managerCompany.company;
-        return { company, branch: null };
-      }
-      
-      const managerBranch = branches.find(ucb => ucb.isManager && ucb.managerType === 'branch' && ucb.branch);
-      if (managerBranch) {
-        const company = typeof managerBranch.company === 'string' ? null : managerBranch.company;
-        const branch = typeof managerBranch.branch === 'string' || !managerBranch.branch ? null : managerBranch.branch;
-        return { company, branch };
-      }
-      
+      // Priority: first active assignment with company
       const first = branches[0];
       const company = typeof first.company === 'string' ? null : first.company;
       const branch = typeof first.branch === 'string' || !first.branch ? null : first.branch;
@@ -321,7 +305,7 @@ export const Users: React.FC = () => {
     };
   }, [userCompanyBranches]);
 
-  const handleEditUser = (user: User) => {
+  const handleEditUser = async (user: User) => {
     setSelectedUser(user);
     setFormData({
       name: user.name,
@@ -329,6 +313,52 @@ export const Users: React.FC = () => {
       password: '',
       role: typeof user.role === 'string' ? user.role : user.role?._id || ''
     });
+    
+    // Kullanıcının mevcut şirket/şube atamalarını yükle
+    const userId = user._id || user.id;
+    if (userId) {
+      try {
+        const res = await userCompanyBranchApi.getUserCompanies(userId);
+        const activeAssignments = res?.assignments?.filter(ucb => ucb.isActive) || [];
+        
+        // Tüm aktif atamaları işle
+        if (activeAssignments.length > 0) {
+          // Şirket bilgisini ilk atamadan al (tüm atamaların aynı şirkete ait olması beklenir)
+          const firstAssignment = activeAssignments[0];
+          const companyId = typeof firstAssignment.company === 'string' 
+            ? firstAssignment.company 
+            : firstAssignment.company?._id || '';
+          
+          // Tüm şube atamalarını bul
+          const branchIds = activeAssignments
+            .filter(ucb => {
+              const branch = typeof ucb.branch === 'string' || !ucb.branch ? null : ucb.branch;
+              return branch !== null;
+            })
+            .map(ucb => {
+              const branch = typeof ucb.branch === 'string' ? ucb.branch : ucb.branch._id || '';
+              return branch;
+            });
+          
+          setAssignFormData({
+            company: companyId,
+            branch: branchIds.length > 0 ? branchIds[0] : '' // Geriye uyumluluk için ilk şubeyi kullan
+          });
+          setSelectedBranches(branchIds); // Çoklu şube seçimlerini ayarla
+        } else {
+          setAssignFormData({ company: '', branch: '' });
+          setSelectedBranches([]);
+        }
+      } catch (error) {
+        console.error('Kullanıcı şirket/şube bilgileri yüklenemedi:', error);
+        setAssignFormData({ company: '', branch: '' });
+        setSelectedBranches([]);
+      }
+    } else {
+      setAssignFormData({ company: '', branch: '' });
+      setSelectedBranches([]);
+    }
+    
     setShowEditModal(true);
   };
 
@@ -343,24 +373,35 @@ export const Users: React.FC = () => {
   };
 
   const handleCreateUser = () => {
+    // Tüm state'leri tamamen temizle
     setFormData({ name: '', email: '', password: '', role: '' });
+    setAssignFormData({ company: '', branch: '' });
+    setSelectedUser(null);
     setShowCreateModal(true);
   };
 
-  const handleAssignUser = (user: User) => {
+  const handleShowBranches = (user: User) => {
     setSelectedUser(user);
-    setAssignFormData({ company: '', branch: '', isManager: false, managerType: '' });
-    setShowAssignModal(true);
+    setShowBranchesModal(true);
   };
+
 
   const handleSubmitCreate = (e: React.FormEvent) => {
     e.preventDefault();
     createUserMutation.mutate(formData);
   };
 
-  const handleSubmitEdit = (e: React.FormEvent) => {
+  const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedUser) {
+    if (!selectedUser) return;
+    
+    const userId = selectedUser._id || selectedUser.id;
+    if (!userId) {
+      showToast('Kullanıcı ID\'si bulunamadı.', 'error');
+      return;
+    }
+    
+    // Kullanıcı bilgilerini güncelle
       const { password, ...updateData } = formData;
       const finalUpdateData: UpdateUserRequest = {
         name: updateData.name,
@@ -372,31 +413,58 @@ export const Users: React.FC = () => {
         finalUpdateData.password = password;
       }
       
-      updateUserMutation.mutate({ userId: selectedUser.id, userData: finalUpdateData });
+    // Önce kullanıcı bilgilerini güncelle
+    try {
+      await authApi.updateUser(selectedUser.id, finalUpdateData);
+      
+      // Şirket/şube ataması durumunu yönet
+      const currentRes = await userCompanyBranchApi.getUserCompanies(userId);
+      const existingActives = currentRes?.assignments?.filter((ucb: UserCompanyBranch) => ucb.isActive) || [];
+      
+      // Mevcut tüm aktif atamaları sil
+      await Promise.all(
+        existingActives.map(ucb => userCompanyBranchApi.deleteUserCompanyBranch(ucb._id))
+      );
+      
+      // Yeni atamaları yap (eğer şirket seçildiyse)
+      if (assignFormData.company) {
+        // Eğer hiç şube seçilmemişse sadece şirket ata
+        if (selectedBranches.length === 0) {
+          await userCompanyBranchApi.assignUserToCompanyBranch({
+            user: userId,
+            company: assignFormData.company,
+            branch: null
+          });
+        } else {
+          // Her seçili şube için ayrı atama yap
+          await Promise.all(
+            selectedBranches.map(branchId =>
+              userCompanyBranchApi.assignUserToCompanyBranch({
+                user: userId,
+                company: assignFormData.company,
+                branch: branchId
+              })
+            )
+          );
+        }
+      }
+      
+      // State'leri temizle
+      setSelectedBranches([]);
+      
+      // Başarılı
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
+      setShowEditModal(false);
+      setSelectedUser(null);
+      showToast('Kullanıcı başarıyla güncellendi.', 'success');
+    } catch (error: any) {
+      logError(error, 'Update User');
+      const errorMessage = getErrorMessage(error, 'Kullanıcı güncellenirken bir hata oluştu.');
+      showToast(errorMessage, 'error');
     }
   };
 
-  const handleSubmitAssign = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser || !assignFormData.company) {
-      showToast('Şirket seçilmelidir.', 'warning');
-      return;
-    }
-    
-    const userId = selectedUser._id || selectedUser.id;
-    if (!userId) {
-      showToast('Kullanıcı ID\'si bulunamadı.', 'error');
-      return;
-    }
-    
-    assignUserMutation.mutate({
-      user: userId,
-      company: assignFormData.company,
-      branch: assignFormData.branch || null,
-      isManager: assignFormData.isManager,
-      managerType: assignFormData.isManager ? (assignFormData.managerType as 'company' | 'branch') : undefined
-    });
-  };
 
   // Get filtered branches for selected company
   const filteredBranches = useMemo(() => {
@@ -432,8 +500,37 @@ export const Users: React.FC = () => {
       title: 'Şube',
       render: (_value: any, user: User) => {
         const userId = user._id || user.id;
-        const { branch } = getPrimaryCompanyBranch(userId || '');
-        return branch?.name || '-';
+        const branches = userCompanyBranches[userId || ''] || [];
+        
+        // Şube olan atamaları filtrele
+        const branchAssignments = branches.filter(ucb => {
+          const branch = typeof ucb.branch === 'string' || !ucb.branch ? null : ucb.branch;
+          return branch !== null;
+        });
+        
+        if (branchAssignments.length === 0) return '-';
+        
+        // İlk şube atamayı göster
+        const first = branchAssignments[0];
+        const firstBranch = typeof first.branch === 'string' || !first.branch ? null : first.branch;
+        
+        // Birden fazla şube ilişkisi varsa badge göster
+        if (branchAssignments.length > 1) {
+          return (
+            <div className="flex items-center gap-2">
+              <span>{firstBranch?.name || '-'}</span>
+              <button
+                onClick={() => handleShowBranches(user)}
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors cursor-pointer"
+                title={`${branchAssignments.length} şube ilişkisi - Detayları görmek için tıklayın`}
+              >
+                +{branchAssignments.length - 1}
+              </button>
+            </div>
+          );
+        }
+        
+        return firstBranch?.name || '-';
       }
     },
     {
@@ -452,14 +549,6 @@ export const Users: React.FC = () => {
             onClick={() => handleEditUser(user)}
           >
             Düzenle
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => handleAssignUser(user)}
-            title="Şirket/Şube Ata"
-          >
-            <UserPlus className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
@@ -505,30 +594,33 @@ export const Users: React.FC = () => {
         <div className="fixed inset-0 bg-black dark:bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-300 dark:border-gray-700">
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Yeni Kullanıcı Ekle</h2>
-            <form onSubmit={handleSubmitCreate} className="space-y-4">
+            <form key={`create-user-form-${createFormKey}`} onSubmit={handleSubmitCreate} className="space-y-4" autoComplete="off">
               <Input
                 label="Ad"
-                value={formData.name}
+                value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                autoComplete="off"
                 required
               />
               <Input
                 label="E-posta"
                 type="email"
-                value={formData.email}
+                value={formData.email || ''}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                autoComplete="new-password"
                 required
               />
               <Input
                 label="Şifre"
                 type="password"
-                value={formData.password}
+                value={formData.password || ''}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                autoComplete="new-password"
                 required
               />
               <Select
                 label="Rol"
-                value={formData.role}
+                value={formData.role || ''}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 options={rolesData?.map((role: Role) => ({
                   value: role._id,
@@ -537,11 +629,87 @@ export const Users: React.FC = () => {
                 placeholder="Rol seçiniz..."
                 required
               />
+              
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Şirket/Şube Ataması (Opsiyonel)
+                </h3>
+                <Select
+                  label="Şirket"
+                  value={assignFormData.company || ''}
+                  onChange={(e) => {
+                    setAssignFormData({ ...assignFormData, company: e.target.value, branch: '' });
+                    setSelectedBranches([]); // Şirket değiştiğinde şube seçimlerini temizle
+                  }}
+                  options={companiesData?.companies?.map((company: Company) => ({
+                    value: company._id,
+                    label: company.name
+                  })) || []}
+                  placeholder="Şirket seçiniz (opsiyonel)..."
+                />
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Şubeler (Opsiyonel)
+                  </label>
+                  <div className="border border-gray-300 dark:border-gray-600 rounded-md max-h-48 overflow-y-auto bg-white dark:bg-gray-700">
+                    {!assignFormData.company ? (
+                      <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        Önce bir şirket seçin
+                      </p>
+                    ) : filteredBranches.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        Bu şirkete ait şube bulunmuyor
+                      </p>
+                    ) : (
+                      <div className="p-2 space-y-1">
+                        {filteredBranches.map((branch: Branch) => (
+                          <label
+                            key={branch._id}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedBranches.includes(branch._id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedBranches([...selectedBranches, branch._id]);
+                                } else {
+                                  setSelectedBranches(selectedBranches.filter(id => id !== branch._id));
+                                }
+                              }}
+                              className="sr-only"
+                            />
+                            {selectedBranches.includes(branch._id) ? (
+                              <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            ) : (
+                              <Square className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                            )}
+                            <span className="text-sm text-gray-900 dark:text-white">{branch.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {selectedBranches.length > 0 ? `${selectedBranches.length} şube seçildi` : 'Birden fazla şube seçebilirsiniz'}
+                  </p>
+                </div>
+              </div>
+              
               <div className="flex space-x-2">
                 <Button type="submit" loading={createUserMutation.isPending}>
                   Oluştur
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setFormData({ name: '', email: '', password: '', role: '' });
+                    setAssignFormData({ company: '', branch: '' });
+                    setSelectedBranches([]);
+                  }}
+                >
                   İptal
                 </Button>
               </div>
@@ -549,6 +717,88 @@ export const Users: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* User Branch Assignments Modal */}
+      {showBranchesModal && selectedUser && (() => {
+        const userId = selectedUser._id || selectedUser.id;
+        const allAssignments = userCompanyBranches[userId || ''] || [];
+        
+        // Sadece şube atamalarını filtrele
+        const branchAssignments = allAssignments.filter(ucb => {
+          const branch = typeof ucb.branch === 'string' || !ucb.branch ? null : ucb.branch;
+          return branch !== null;
+        });
+        
+        return (
+          <div className="fixed inset-0 bg-black dark:bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl border border-gray-300 dark:border-gray-700">
+              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                {selectedUser.name} - Tüm Şube Atamaları
+              </h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {branchAssignments.length === 0 ? (
+                  <p className="text-gray-500 dark:text-gray-400">Henüz şube ataması bulunmuyor.</p>
+                ) : (
+                  branchAssignments.map((assignment, index) => {
+                    const company = typeof assignment.company === 'string' ? null : assignment.company;
+                    const branch = typeof assignment.branch === 'string' || !assignment.branch ? null : assignment.branch;
+                    
+                    return (
+                      <div 
+                        key={assignment._id || index}
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-900"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-5 w-5 text-green-500" />
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-white">
+                                  {branch?.name || 'Şube bilgisi yok'}
+                                </p>
+                                {company && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Building2 className="h-4 w-4 text-blue-500" />
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                                      {company.name}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              assignment.isActive 
+                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                            }`}>
+                              {assignment.isActive ? 'Aktif' : 'Pasif'}
+                            </span>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {new Date(assignment.createdAt).toLocaleDateString('tr-TR')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <Button 
+                  onClick={() => {
+                    setShowBranchesModal(false);
+                    setSelectedUser(null);
+                  }}
+                >
+                  Kapat
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
@@ -586,32 +836,17 @@ export const Users: React.FC = () => {
                 placeholder="Rol seçiniz..."
                 required
               />
-              <div className="flex space-x-2">
-                <Button type="submit" loading={updateUserMutation.isPending}>
-                  Güncelle
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>
-                  İptal
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Assign User to Company/Branch Modal */}
-      {showAssignModal && selectedUser && (
-        <div className="fixed inset-0 bg-black dark:bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-300 dark:border-gray-700">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-              {selectedUser.name} - Şirket/Şube Ata
-            </h2>
-            <form onSubmit={handleSubmitAssign} className="space-y-4">
+              
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Şirket/Şube Ataması
+                </h3>
               <Select
                 label="Şirket *"
                 value={assignFormData.company}
                 onChange={(e) => {
                   setAssignFormData({ ...assignFormData, company: e.target.value, branch: '' });
+                  setSelectedBranches([]); // Şirket değiştiğinde şube seçimlerini temizle
                 }}
                 options={companiesData?.companies?.map((company: Company) => ({
                   value: company._id,
@@ -620,47 +855,69 @@ export const Users: React.FC = () => {
                 placeholder="Şirket seçiniz..."
                 required
               />
-              <Select
-                label="Şube (Opsiyonel)"
-                value={assignFormData.branch}
-                onChange={(e) => setAssignFormData({ ...assignFormData, branch: e.target.value })}
-                options={filteredBranches.map((branch: Branch) => ({
-                  value: branch._id,
-                  label: branch.name
-                }))}
-                placeholder="Şube seçiniz (boş bırakılırsa sadece şirket atanır)..."
-                disabled={!assignFormData.company}
-              />
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isManager"
-                  checked={assignFormData.isManager}
-                  onChange={(e) => setAssignFormData({ ...assignFormData, isManager: e.target.checked, managerType: e.target.checked ? '' : '' })}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                />
-                <label htmlFor="isManager" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Yönetici olarak ata
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Şubeler (Opsiyonel)
                 </label>
+                <div className="border border-gray-300 dark:border-gray-600 rounded-md max-h-48 overflow-y-auto bg-white dark:bg-gray-700">
+                  {!assignFormData.company ? (
+                    <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                      Önce bir şirket seçin
+                    </p>
+                  ) : filteredBranches.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                      Bu şirkete ait şube bulunmuyor
+                    </p>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      {filteredBranches.map((branch: Branch) => (
+                        <label
+                          key={branch._id}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedBranches.includes(branch._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBranches([...selectedBranches, branch._id]);
+                              } else {
+                                setSelectedBranches(selectedBranches.filter(id => id !== branch._id));
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                          {selectedBranches.includes(branch._id) ? (
+                            <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          ) : (
+                            <Square className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                          )}
+                          <span className="text-sm text-gray-900 dark:text-white">{branch.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {selectedBranches.length > 0 ? `${selectedBranches.length} şube seçildi` : 'Birden fazla şube seçebilirsiniz'}
+                </p>
               </div>
-              {assignFormData.isManager && (
-                <Select
-                  label="Yönetici Tipi *"
-                  value={assignFormData.managerType}
-                  onChange={(e) => setAssignFormData({ ...assignFormData, managerType: e.target.value as 'company' | 'branch' })}
-                  options={[
-                    { value: 'company', label: 'Şirket Yöneticisi' },
-                    { value: 'branch', label: 'Şube Yöneticisi' }
-                  ]}
-                  placeholder="Yönetici tipi seçiniz..."
-                  required={assignFormData.isManager}
-                />
-              )}
+              </div>
+              
               <div className="flex space-x-2">
-                <Button type="submit" loading={assignUserMutation.isPending}>
-                  Ata
+                <Button type="submit">
+                  Güncelle
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedUser(null);
+                    setAssignFormData({ company: '', branch: '' });
+                    setSelectedBranches([]);
+                  }}
+                >
                   İptal
                 </Button>
               </div>
@@ -668,6 +925,7 @@ export const Users: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

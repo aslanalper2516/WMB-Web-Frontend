@@ -36,7 +36,7 @@ export const Profile: React.FC = () => {
       const loadUserCompanyBranches = async () => {
         try {
           const res = await userCompanyBranchApi.getUserCompanies(userId);
-          setUserCompanyBranches(res.userCompanyBranches.filter(ucb => ucb.isActive));
+          setUserCompanyBranches(res.assignments.filter(ucb => ucb.isActive));
         } catch (error) {
           setUserCompanyBranches([]);
         }
@@ -51,20 +51,7 @@ export const Profile: React.FC = () => {
   const getPrimaryCompanyBranch = () => {
     if (userCompanyBranches.length === 0) return { company: null, branch: null };
     
-    // Priority: manager company > manager branch > first active
-    const managerCompany = userCompanyBranches.find(ucb => ucb.isManager && ucb.managerType === 'company' && !ucb.branch);
-    if (managerCompany) {
-      const company = typeof managerCompany.company === 'string' ? null : managerCompany.company;
-      return { company, branch: null };
-    }
-    
-    const managerBranch = userCompanyBranches.find(ucb => ucb.isManager && ucb.managerType === 'branch' && ucb.branch);
-    if (managerBranch) {
-      const company = typeof managerBranch.company === 'string' ? null : managerBranch.company;
-      const branch = typeof managerBranch.branch === 'string' || !managerBranch.branch ? null : managerBranch.branch;
-      return { company, branch };
-    }
-    
+    // Priority: first active assignment
     const first = userCompanyBranches[0];
     const company = typeof first.company === 'string' ? null : first.company;
     const branch = typeof first.branch === 'string' || !first.branch ? null : first.branch;

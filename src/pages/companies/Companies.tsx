@@ -19,7 +19,8 @@ export const Companies: React.FC = () => {
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedManager, setSelectedManager] = useState<string>('');
-  const [companyManager, setCompanyManager] = useState<UserCompanyBranch | null>(null);
+  const [companyManagers, setCompanyManagers] = useState<any[]>([]);
+  const [availableManagers, setAvailableManagers] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState<CreateCompanyRequest>({
     name: '',
@@ -141,22 +142,52 @@ export const Companies: React.FC = () => {
 
   const assignManagerMutation = useMutation({
     mutationFn: ({ userId, companyId }: { userId: string; companyId: string }) => {
-      const requestData: any = {
+      const requestData = {
         user: userId,
-        company: companyId,
-        isManager: true,
-        managerType: 'company'
+        company: companyId
       };
       return userCompanyBranchApi.assignUserToCompanyBranch(requestData);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
-      setIsManagerModalOpen(false);
       setSelectedManager('');
-      setSelectedCompany(null);
-      setCompanyManager(null);
       showToast('Yönetici başarıyla atandı.', 'success');
+      
+      // Yöneticiler listesini yenile
+      if (selectedCompany) {
+        try {
+          const managersRes = await companyBranchApi.getCompanyManagers(selectedCompany._id);
+          if (managersRes?.managers) {
+            setCompanyManagers(managersRes.managers);
+          }
+          
+          // Available managers listesini de güncelle
+          const allUsersRes = await authApi.getUsers();
+          if (allUsersRes?.users) {
+            const companyManagerRoleUsers = allUsersRes.users.filter((user: any) => {
+              const role = typeof user.role === 'string' ? null : user.role;
+              const roleName = role?.name?.toLowerCase() || '';
+              return roleName === 'şirket yöneticisi' || roleName === 'şirket-yöneticisi' || 
+                     roleName === 'sirket yoneticisi' || roleName === 'sirket-yoneticisi';
+            });
+            
+            const currentManagerIds = managersRes?.managers?.map((m: any) => {
+              const user = typeof m.user === 'string' ? null : m.user;
+              return typeof user === 'string' ? user : user?._id || user?.id;
+            }) || [];
+            
+            const available = companyManagerRoleUsers.filter((user: any) => {
+              const userId = user._id || user.id;
+              return !currentManagerIds.includes(userId);
+            });
+            
+            setAvailableManagers(available);
+          }
+        } catch (error) {
+          console.error('Yöneticiler yenilenemedi:', error);
+        }
+      }
     },
     onError: (error: any) => {
       console.error('Yönetici atama hatası:', error);
@@ -257,23 +288,47 @@ export const Companies: React.FC = () => {
     setSelectedManager('');
     setIsManagerModalOpen(true);
     
-    // Mevcut yöneticiyi yükle
+    // Mevcut yöneticileri ve yönetici adaylarını yükle
     try {
-      const res = await userCompanyBranchApi.getCompanyUsers(company._id);
-      if (res && res.userCompanyBranches && Array.isArray(res.userCompanyBranches)) {
-        const manager = res.userCompanyBranches.find(
-          (ucb: UserCompanyBranch) => 
-            ucb.isManager && 
-            ucb.managerType === 'company' && 
-            (!ucb.branch || typeof ucb.branch === 'string')
-        );
-        setCompanyManager(manager || null);
+      const managersRes = await companyBranchApi.getCompanyManagers(company._id);
+      
+      // Mevcut yöneticileri ayarla (bu şirkete atanmış ve rolü "şirket yöneticisi" olanlar)
+      if (managersRes?.managers) {
+        setCompanyManagers(managersRes.managers);
       } else {
-        setCompanyManager(null);
+        setCompanyManagers([]);
+      }
+      
+      // Tüm kullanıcıları getir ve rolü "şirket yöneticisi" olanları filtrele
+      const allUsersRes = await authApi.getUsers();
+      if (allUsersRes?.users) {
+        const companyManagerRoleUsers = allUsersRes.users.filter((user: any) => {
+          const role = typeof user.role === 'string' ? null : user.role;
+          const roleName = role?.name?.toLowerCase() || '';
+          return roleName === 'şirket yöneticisi' || roleName === 'şirket-yöneticisi' || 
+                 roleName === 'sirket yoneticisi' || roleName === 'sirket-yoneticisi';
+        });
+        
+        // Mevcut yöneticilerin ID'lerini al
+        const currentManagerIds = managersRes?.managers?.map((m: any) => {
+          const user = typeof m.user === 'string' ? null : m.user;
+          return typeof user === 'string' ? user : user?._id || user?.id;
+        }) || [];
+        
+        // Henüz bu şirkete atanmamış olan yönetici adaylarını göster
+        const available = companyManagerRoleUsers.filter((user: any) => {
+          const userId = user._id || user.id;
+          return !currentManagerIds.includes(userId);
+        });
+        
+        setAvailableManagers(available);
+      } else {
+        setAvailableManagers([]);
       }
     } catch (error) {
       console.error('Yönetici yüklenemedi:', error);
-      setCompanyManager(null);
+      setCompanyManagers([]);
+      setAvailableManagers([]);
     }
   };
 
@@ -723,60 +778,50 @@ export const Companies: React.FC = () => {
           <div className="relative top-20 mx-auto p-5 border border-gray-300 dark:border-gray-700 w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Yönetici Ata: {selectedCompany?.name}
+                Yöneticiler: {selectedCompany?.name}
               </h3>
               <div className="space-y-4">
-                {companyManager && (() => {
-                  const managerUser = typeof companyManager.user === 'string' 
-                    ? usersData?.users.find(u => (u._id || u.id) === companyManager.user)
-                    : companyManager.user;
-                  
-                  return (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4 mb-4">
-                      <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
-                        Mevcut Yönetici
-                      </p>
-                      <div className="flex items-start space-x-2">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span className="text-white text-sm font-medium">
-                              {managerUser?.name?.charAt(0).toUpperCase() || '?'}
-                            </span>
+                {companyManagers.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-2">
+                      Mevcut Yöneticiler ({companyManagers.length})
+                    </p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {companyManagers.map((manager, index) => {
+                        const user = typeof manager.user === 'string' ? null : manager.user;
+                        if (!user) return null;
+                        
+                        return (
+                          <div key={index} className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                            <div className="flex items-start space-x-2">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-sm font-medium">
+                                    {user?.name?.charAt(0).toUpperCase() || '?'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {user?.name || 'Bilinmiyor'}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  ✉️ {user?.email || 'Email bulunamadı'}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {managerUser?.name || 'Bilinmiyor'}
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                            ✉️ {managerUser?.email || 'Email bulunamadı'}
-                          </p>
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Yeni Yönetici Seç
-                  </label>
-                  <select
-                    value={selectedManager}
-                    onChange={(e) => setSelectedManager(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Yönetici Seçin</option>
-                    {usersData?.users.map((user) => {
-                      const userId = user._id || user.id;
-                      return (
-                        <option key={userId} value={userId}>
-                          {user.name} ({user.email})
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
+                {companyManagers.length === 0 && (
+                  <div className="text-center py-4">
+                    <p className="text-gray-500 dark:text-gray-400">Henüz yönetici atanmamış.</p>
+                  </div>
+                )}
 
                 <div className="flex justify-end space-x-3">
                   <Button
@@ -786,16 +831,11 @@ export const Companies: React.FC = () => {
                       setIsManagerModalOpen(false);
                       setSelectedManager('');
                       setSelectedCompany(null);
+                      setCompanyManagers([]);
+                      setAvailableManagers([]);
                     }}
                   >
-                    İptal
-                  </Button>
-                  <Button
-                    onClick={handleAssignManager}
-                    loading={assignManagerMutation.isPending}
-                    disabled={!selectedManager}
-                  >
-                    Ata
+                    Kapat
                   </Button>
                 </div>
               </div>
