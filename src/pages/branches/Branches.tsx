@@ -265,11 +265,9 @@ export const Branches: React.FC = () => {
       showToast(errorMessage, 'error');
       
       // Detaylı hata loglama
-      console.error('Error details:', {
+      console.error('Yönetici atama detayları:', {
         status: error.response?.status,
-        statusText: error.response?.statusText,
         data: error.response?.data,
-        headers: error.response?.headers,
         request: {
           url: error.config?.url,
           method: error.config?.method,
@@ -278,6 +276,90 @@ export const Branches: React.FC = () => {
       });
     },
   });
+
+  // Yönetici kaldırma mutation
+  const removeManagerMutation = useMutation({
+    mutationFn: async (userCompanyBranchId: string) => {
+      return userCompanyBranchApi.deleteUserCompanyBranch(userCompanyBranchId);
+    },
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
+      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
+      showToast('Yönetici başarıyla kaldırıldı.', 'success');
+      
+      // Yöneticiler listesini yenile
+      if (selectedBranch) {
+        try {
+          const managersRes = await companyBranchApi.getBranchManagers(selectedBranch._id);
+          if (managersRes?.managers) {
+            setBranchManagers(managersRes.managers);
+          } else {
+            setBranchManagers([]);
+          }
+          
+          // Available managers listesini de güncelle
+          const companyId = typeof selectedBranch.company === 'string' 
+            ? selectedBranch.company 
+            : selectedBranch.company._id;
+          
+          const [allUsersRes, companyUsersRes] = await Promise.all([
+            authApi.getUsers(),
+            userCompanyBranchApi.getCompanyUsers(companyId)
+          ]);
+          
+          if (allUsersRes?.users) {
+            const branchManagerRoleUsers = allUsersRes.users.filter((user: any) => {
+              const role = typeof user.role === 'string' ? null : user.role;
+              const roleName = role?.name?.toLowerCase() || '';
+              return roleName === 'şube yöneticisi' || roleName === 'şube-yöneticisi' || 
+                     roleName === 'sube yoneticisi' || roleName === 'sube-yoneticisi';
+            });
+            
+            const companyUserIds = companyUsersRes?.assignments
+              ?.filter((ucb: UserCompanyBranch) => ucb.isActive)
+              ?.map((ucb: UserCompanyBranch) => {
+                const user = typeof ucb.user === 'string' ? null : ucb.user;
+                return typeof user === 'string' ? user : user?._id || user?.id;
+              }) || [];
+            
+            const currentManagerIds = managersRes?.managers?.map((m: any) => {
+              const user = typeof m.user === 'string' ? null : m.user;
+              return typeof user === 'string' ? user : user?._id || user?.id;
+            }) || [];
+            
+            const available = branchManagerRoleUsers.filter((user: any) => {
+              const userId = user._id || user.id;
+              return companyUserIds.includes(userId) && !currentManagerIds.includes(userId);
+            });
+            
+            setAvailableManagers(available);
+          }
+        } catch (error) {
+          console.error('Yöneticiler yenilenemedi:', error);
+        }
+      }
+    },
+    onError: (error: any) => {
+      console.error('Yönetici kaldırma hatası:', error);
+      showToast('Yönetici kaldırılırken bir hata oluştu.', 'error');
+    },
+  });
+
+  const handleRemoveManager = async (manager: any) => {
+    const user = typeof manager.user === 'string' ? null : manager.user;
+    const userName = user?.name || 'Yönetici';
+    
+    const confirmed = await confirm({
+      title: 'Yöneticiyi Kaldır',
+      message: `${userName} kullanıcısının yöneticilik görevini kaldırmak istediğinizden emin misiniz?`,
+      confirmText: 'Kaldır',
+      cancelText: 'İptal'
+    });
+    
+    if (confirmed && manager._id) {
+      removeManagerMutation.mutate(manager._id);
+    }
+  };
 
 
   const assignSalesMethodMutation = useMutation({
@@ -399,9 +481,11 @@ export const Branches: React.FC = () => {
     setSelectedBranch(branch);
     
     // Company ID'yi al (string veya obje olabilir)
-    const companyId = typeof branch.company === 'string' 
-      ? branch.company 
-      : branch.company._id;
+    const companyId = !branch.company 
+      ? '' 
+      : typeof branch.company === 'string' 
+        ? branch.company 
+        : branch.company?._id || '';
     
     setFormData({
       name: branch.name,
@@ -1360,22 +1444,33 @@ export const Branches: React.FC = () => {
                         
                         return (
                           <div key={index} className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border border-green-200 dark:border-green-700 rounded-lg p-3">
-                            <div className="flex items-start space-x-2">
-                              <div className="flex-shrink-0 mt-0.5">
-                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                  <span className="text-white text-sm font-medium">
-                                    {user?.name?.charAt(0).toUpperCase() || '?'}
-                                  </span>
+                            <div className="flex items-start justify-between space-x-2">
+                              <div className="flex items-start space-x-2 flex-1">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-sm font-medium">
+                                      {user?.name?.charAt(0).toUpperCase() || '?'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {user?.name || 'Bilinmiyor'}
+                                  </p>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                    ✉️ {user?.email || 'Email bulunamadı'}
+                                  </p>
                                 </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                  {user?.name || 'Bilinmiyor'}
-                                </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                                  ✉️ {user?.email || 'Email bulunamadı'}
-                                </p>
-                              </div>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => handleRemoveManager(manager)}
+                                loading={removeManagerMutation.isPending}
+                                title="Yöneticiyi Kaldır"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                         );

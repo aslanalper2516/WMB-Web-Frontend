@@ -96,7 +96,7 @@ export const Users: React.FC = () => {
     }
   }, [showCreateModal]);
 
-  const { data: usersData, isLoading } = useQuery({
+  const { data: usersData, isLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['users'],
     queryFn: () => authApi.getUsers(),
   });
@@ -637,10 +637,36 @@ export const Users: React.FC = () => {
       
       // State'leri temizle
       setSelectedBranches([]);
+      setAssignFormData({ company: '', branch: '' });
+      setFormData({ name: '', email: '', password: '', role: '' });
       
-      // Başarılı
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
+      // Başarılı - Tüm ilgili query'leri invalidate et ve refetch et
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+      await queryClient.invalidateQueries({ queryKey: ['userCompanyBranches'] });
+      await queryClient.invalidateQueries({ queryKey: ['roles'] });
+      
+      // Kullanıcı listesini yeniden çek
+      const updatedUsersData = await refetchUsers();
+      
+      // Kullanıcı listesi güncellendiğinde şirket/şube bilgilerini de yenile
+      if (updatedUsersData?.data?.users) {
+        const branchesMap: Record<string, UserCompanyBranch[]> = {};
+        await Promise.allSettled(
+          updatedUsersData.data.users.map(async (user: User) => {
+            const userId = user._id || user.id;
+            if (!userId) return;
+            
+            try {
+              const res = await userCompanyBranchApi.getUserCompanies(userId);
+              branchesMap[userId] = res?.assignments?.filter(ucb => ucb.isActive) || [];
+            } catch (error) {
+              branchesMap[userId] = [];
+            }
+          })
+        );
+        setUserCompanyBranches(branchesMap);
+      }
+      
       setShowEditModal(false);
       setSelectedUser(null);
       showToast('Kullanıcı başarıyla güncellendi.', 'success');
